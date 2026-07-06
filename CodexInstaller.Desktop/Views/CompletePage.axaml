@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CodexInstaller.Desktop.ViewModels"
+             x:Class="CodexInstaller.Desktop.Views.CompletePage"
+             x:DataType="vm:CompletePageViewModel">
+    <StackPanel VerticalAlignment="Center" Spacing="16" HorizontalAlignment="Center">
+        <TextBlock Text="安装完成!" FontSize="22" FontWeight="Bold"
+                   HorizontalAlignment="Center" Foreground="{StaticResource SystemAccentColor}"/>
+
+        <TextBlock Text="Codex Desktop 已成功安装到本机。"
+                   TextWrapping="Wrap" HorizontalAlignment="Center"
+                   TextAlignment="Center" Foreground="Gray"/>
+
+        <Separator Margin="0,8"/>
+
+        <TextBlock Text="下一步：启动 Codex。"
+                   TextWrapping="Wrap" FontSize="13"
+                   HorizontalAlignment="Center" TextAlignment="Center"
+                   Foreground="#888"/>
+
+        <StackPanel HorizontalAlignment="Center" Spacing="10">
+            <Button Content="启动 Codex" Command="{Binding LaunchCommand}"
+                    Width="220" Height="40" FontSize="14" FontWeight="SemiBold"
+                    Background="{StaticResource SystemAccentColor}" Foreground="White"
+                    CornerRadius="8"/>
+            <Button Content="退出" Command="{Binding ExitCommand}"
+                    Width="220" Height="40" FontSize="14"
+                    CornerRadius="8"/>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

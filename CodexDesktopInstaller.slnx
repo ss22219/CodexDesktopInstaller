@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="CodexInstaller.Core/CodexInstaller.Core.csproj" />
+  <Project Path="CodexInstaller.Desktop/CodexInstaller.Desktop.csproj" />
+  <Project Path="CodexApiProxy/CodexApiProxy.csproj" />
+  <Project Path="CodexLauncher/CodexLauncher.csproj" />
+</Solution>

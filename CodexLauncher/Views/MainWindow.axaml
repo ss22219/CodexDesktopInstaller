@@ -1,0 +1,233 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CodexLauncher.ViewModels"
+        x:Class="CodexLauncher.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Codex 启动"
+        Icon="/Assets/codex.ico"
+        Width="1080" Height="720"
+        MinWidth="980" MinHeight="660"
+        Background="#F5F7FA"
+        WindowStartupLocation="CenterScreen">
+    <Grid RowDefinitions="Auto,Auto,*" Margin="28" RowSpacing="18">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+            <Border Width="44" Height="44" CornerRadius="8" Background="#EAF3FF"
+                    HorizontalAlignment="Left" VerticalAlignment="Center">
+                <Image Source="/Assets/codex.ico" Width="28" Height="28"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="Codex 启动" FontSize="30" FontWeight="SemiBold" Foreground="#111827"/>
+                <TextBlock Text="选择授权类型，保存配置后启动 Codex。"
+                           Foreground="#667085" FontSize="15"/>
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="14">
+            <Button Grid.Column="0"
+                    Command="{Binding SelectProviderCommand}"
+                    CommandParameter="opencode_free"
+                    Padding="0"
+                    BorderThickness="0"
+                    Background="Transparent"
+                    HorizontalContentAlignment="Stretch"
+                    VerticalContentAlignment="Stretch">
+                <Border MinHeight="136" Padding="18" CornerRadius="8"
+                        Background="#FFFFFF" BorderBrush="#BFD7FF" BorderThickness="1">
+                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <Border Width="36" Height="36" CornerRadius="8" Background="#E8F2FF">
+                                <Image Source="/Assets/codex.ico" Width="22" Height="22"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="免费模型" FontSize="20" FontWeight="SemiBold"
+                                       Margin="12,0,0,0" VerticalAlignment="Center" Foreground="#111827"/>
+                        </Grid>
+                        <TextBlock Grid.Row="1"
+                                   Text="默认 DeepSeek 免费模型，免填 Key，适合直接开始使用。"
+                                   TextWrapping="Wrap" Foreground="#596579" FontSize="14" LineHeight="20"/>
+                        <Border Grid.Row="2" IsVisible="{Binding IsFreeProvider}"
+                                Background="#1473E6" CornerRadius="8" Padding="10,5"
+                                HorizontalAlignment="Left">
+                            <TextBlock Text="当前选择" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Button>
+
+            <Button Grid.Column="1"
+                    Command="{Binding SelectProviderCommand}"
+                    CommandParameter="openapi_official"
+                    Padding="0"
+                    BorderThickness="0"
+                    Background="Transparent"
+                    HorizontalContentAlignment="Stretch"
+                    VerticalContentAlignment="Stretch">
+                <Border MinHeight="136" Padding="18" CornerRadius="8"
+                        Background="#FFFFFF" BorderBrush="#CFE7D8" BorderThickness="1">
+                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <Border Width="36" Height="36" CornerRadius="8" Background="#EAF7EF">
+                                <TextBlock Text="AI" Foreground="#107C41" FontSize="15" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="OpenAI 官方" FontSize="20" FontWeight="SemiBold"
+                                       Margin="12,0,0,0" VerticalAlignment="Center" Foreground="#111827"/>
+                        </Grid>
+                        <TextBlock Grid.Row="1"
+                                   Text="使用官方登录和官方模型，不显示额外技术配置。"
+                                   TextWrapping="Wrap" Foreground="#596579" FontSize="14" LineHeight="20"/>
+                        <Border Grid.Row="2" IsVisible="{Binding IsOfficialProvider}"
+                                Background="#107C41" CornerRadius="8" Padding="10,5"
+                                HorizontalAlignment="Left">
+                            <TextBlock Text="当前选择" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Button>
+
+            <Button Grid.Column="2"
+                    Command="{Binding SelectProviderCommand}"
+                    CommandParameter="custom"
+                    Padding="0"
+                    BorderThickness="0"
+                    Background="Transparent"
+                    HorizontalContentAlignment="Stretch"
+                    VerticalContentAlignment="Stretch">
+                <Border MinHeight="136" Padding="18" CornerRadius="8"
+                        Background="#FFFFFF" BorderBrush="#F0D3A1" BorderThickness="1">
+                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <Border Width="36" Height="36" CornerRadius="8" Background="#FFF4DF">
+                                <TextBlock Text="API" Foreground="#A15C00" FontSize="13" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="自定义 API" FontSize="20" FontWeight="SemiBold"
+                                       Margin="12,0,0,0" VerticalAlignment="Center" Foreground="#111827"/>
+                        </Grid>
+                        <TextBlock Grid.Row="1"
+                                   Text="接入自己的兼容接口，填写地址、Key 和模型。"
+                                   TextWrapping="Wrap" Foreground="#596579" FontSize="14" LineHeight="20"/>
+                        <Border Grid.Row="2" IsVisible="{Binding IsCustomProvider}"
+                                Background="#B86B00" CornerRadius="8" Padding="10,5"
+                                HorizontalAlignment="Left">
+                            <TextBlock Text="当前选择" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Button>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,320" ColumnSpacing="18">
+            <Border Grid.Column="0" Background="#FFFFFF" CornerRadius="8"
+                    BorderBrush="#E2E8F0" BorderThickness="1" Padding="24">
+                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
+                    <StackPanel Grid.Row="0" Spacing="4">
+                        <TextBlock Text="{Binding SelectedProviderName}" FontSize="24"
+                                   FontWeight="SemiBold" Foreground="#111827"/>
+                        <TextBlock Text="配置完成后点击保存并启动，启动器会自动关闭。"
+                                   Foreground="#667085" FontSize="14"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="1">
+                        <StackPanel Spacing="18" IsVisible="{Binding IsFreeProvider}">
+                            <Border Background="#F3F8FF" BorderBrush="#CDE0FF" BorderThickness="1"
+                                    CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="免费模型无需填写 API Key。" FontWeight="SemiBold"
+                                               Foreground="#173B6D"/>
+                                    <TextBlock Text="默认优先使用 DeepSeek 免费模型，适合新用户直接启动。"
+                                               TextWrapping="Wrap" Foreground="#4A6282"/>
+                                </StackPanel>
+                            </Border>
+                            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                                <TextBlock Text="模型" FontWeight="SemiBold" Foreground="#111827"/>
+                                <ComboBox Grid.Row="1"
+                                          ItemsSource="{Binding ModelOptions}"
+                                          SelectedItem="{Binding Model}"
+                                          MinHeight="42"
+                                          MaxWidth="360"
+                                          HorizontalAlignment="Left"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel Spacing="18" IsVisible="{Binding IsOfficialProvider}">
+                            <Border Background="#F3FAF5" BorderBrush="#CFE7D8" BorderThickness="1"
+                                    CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="OpenAI 官方模式会使用官方登录。" FontWeight="SemiBold"
+                                               Foreground="#14532D"/>
+                                    <TextBlock Text="不需要在启动器里填写模型、Base URL 或 API Key。"
+                                               TextWrapping="Wrap" Foreground="#4A6352"/>
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="点击保存并启动后，Codex 将按官方授权方式启动。"
+                                       Foreground="#596579" FontSize="14"/>
+                        </StackPanel>
+
+                        <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="16"
+                              IsVisible="{Binding IsCustomProvider}">
+                            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                                <TextBlock Text="API 地址" FontWeight="SemiBold" Foreground="#111827"/>
+                                <TextBox Grid.Row="1"
+                                         Text="{Binding BaseUrl}"
+                                         PlaceholderText="https://api.example.com/v1"
+                                         MinHeight="42"/>
+                            </Grid>
+                            <Grid Grid.Row="1" RowDefinitions="Auto,Auto" RowSpacing="8">
+                                <TextBlock Text="API Key" FontWeight="SemiBold" Foreground="#111827"/>
+                                <TextBox Grid.Row="1"
+                                         Text="{Binding ApiKey}"
+                                         PasswordChar="*"
+                                         PlaceholderText="可留空，后续也可以回来填写"
+                                         MinHeight="42"/>
+                            </Grid>
+                            <Grid Grid.Row="2" RowDefinitions="Auto,Auto" RowSpacing="8">
+                                <TextBlock Text="模型" FontWeight="SemiBold" Foreground="#111827"/>
+                                <ComboBox Grid.Row="1"
+                                          ItemsSource="{Binding ModelOptions}"
+                                          SelectedItem="{Binding Model}"
+                                          MinHeight="42"
+                                          MaxWidth="420"
+                                          HorizontalAlignment="Left"/>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                        <TextBlock Text="{Binding StatusText}" Foreground="#667085"
+                                   FontSize="13" VerticalAlignment="Center"
+                                   TextWrapping="Wrap"/>
+                        <Button Grid.Column="1"
+                                Content="保存并启动 Codex"
+                                Command="{Binding SaveAndLaunchCommand}"
+                                MinWidth="168"
+                                Height="42"
+                                Background="#1473E6"
+                                Foreground="White"
+                                FontWeight="SemiBold"/>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Background="#FFFFFF" CornerRadius="8"
+                    BorderBrush="#E2E8F0" BorderThickness="1" Padding="22">
+                <StackPanel Spacing="14">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="联系我获取" FontSize="20" FontWeight="SemiBold"
+                                   Foreground="#111827"/>
+                        <TextBlock Text="扫码添加微信，获取模型和使用支持。"
+                                   Foreground="#667085" FontSize="13" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Border Background="#FFF7ED" BorderBrush="#F1C27D" BorderThickness="1"
+                            CornerRadius="8" Padding="10" HorizontalAlignment="Center">
+                        <Image Source="/Assets/wechat-qr.jpg" Width="230" Height="230"
+                               Stretch="Uniform"/>
+                    </Border>
+                    <TextBlock Text="微信二维码" HorizontalAlignment="Center"
+                               Foreground="#8A4B00" FontWeight="SemiBold"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

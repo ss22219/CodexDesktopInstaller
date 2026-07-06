@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CodexInstaller.Desktop.ViewModels"
+        xmlns:views="using:CodexInstaller.Desktop.Views"
+        x:Class="CodexInstaller.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Codex 安装"
+        Icon="/Assets/codex.ico"
+        Width="640" Height="480"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource SystemAccentColor}" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock Text="Codex Desktop" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="一键安装 · 完整工作环境" FontSize="13" Foreground="#D0D0D0" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <ContentControl Grid.Row="1" Content="{Binding CurrentPage}"/>
+
+        <TextBlock Grid.Row="2" Text="Codex 安装 v1.0" FontSize="11"
+                   Foreground="Gray" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+    </Grid>
+</Window>
