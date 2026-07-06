@@ -745,8 +745,8 @@ public partial class MainWindowViewModel : ObservableObject
                 FileName = "/usr/bin/open",
                 UseShellExecute = false
             };
-            startInfo.ArgumentList.Add("-n");
-            startInfo.ArgumentList.Add(codexApp);
+            startInfo.ArgumentList.Add("-a");
+            startInfo.ArgumentList.Add("Codex");
             if (codexArgs.Count > 0)
             {
                 startInfo.ArgumentList.Add("--args");
@@ -773,6 +773,31 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         Process.Start(startInfo);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && codexApp is not null)
+        {
+            ActivateMacCodex();
+        }
+    }
+
+    private static void ActivateMacCodex()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "/usr/bin/osascript",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                ArgumentList =
+                {
+                    "-e",
+                    "tell application id \"com.openai.codex\" to activate"
+                }
+            });
+        }
+        catch
+        {
+        }
     }
 
     private static void AddOfflineSafeCodexArguments(ICollection<string> args)
