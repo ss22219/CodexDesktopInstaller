@@ -143,6 +143,13 @@ if [[ "$LIVE" -eq 1 ]]; then
   echo "$RESPONSE" | grep -q '"status":"completed"' || fail "live response did not complete"
   echo "$RESPONSE" | grep -q 'output_text' || fail "live response did not contain output text"
   pass "live chat response"
+
+  STREAM_BODY='{"model":"deepseek-v4-flash-free","input":"只回复 OK","stream":true}'
+  STREAM_RESPONSE="$(curl -fsS -N -X POST "http://127.0.0.1:$PORT/v1/responses" -H 'content-type: application/json' -d "$STREAM_BODY")"
+  echo "$STREAM_RESPONSE" | grep -q 'response.output_text.delta' || fail "live stream did not contain output text delta"
+  echo "$STREAM_RESPONSE" | grep -q '"delta":"OK"' || fail "live stream did not contain expected OK delta"
+  echo "$STREAM_RESPONSE" | grep -q 'data: \[DONE\]' || fail "live stream did not finish"
+  pass "live streaming chat response"
 fi
 
 pass "macOS smoke test finished without touching official Codex config"

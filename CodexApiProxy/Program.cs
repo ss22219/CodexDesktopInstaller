@@ -363,6 +363,36 @@ internal sealed class CodexApiProxy
                 throw new InvalidOperationException("chat reasoning_content was not preserved in Responses output");
             }
 
+            var reasoningOnlyChat = JsonNode.Parse("""
+            {
+              "id": "chatcmpl_reasoning_only",
+              "model": "deepseek-v4-flash-free",
+              "choices": [
+                {
+                  "message": {
+                    "role": "assistant",
+                    "reasoning_content": "fallback text",
+                    "content": ""
+                  }
+                }
+              ],
+              "usage": {
+                "prompt_tokens": 1,
+                "completion_tokens": 1,
+                "total_tokens": 2
+              }
+            }
+            """)!.AsObject();
+            var reasoningOnly = ChatToResponses(reasoningOnlyChat, sample);
+            var reasoningOnlyOutput = reasoningOnly["output"] as JsonArray
+                ?? throw new InvalidOperationException("missing reasoning-only output");
+            if (reasoningOnlyOutput.Count < 2
+                || NodeText(reasoningOnlyOutput[0]?["type"]) != "reasoning"
+                || NodeText(reasoningOnlyOutput[1]?["type"]) != "message")
+            {
+                throw new InvalidOperationException("reasoning-only chat response did not include assistant message output");
+            }
+
             Console.WriteLine("CodexApiProxy self-test passed");
             return 0;
         }
@@ -1036,7 +1066,7 @@ internal sealed class CodexApiProxy
             }
         }
 
-        if (output.Count == 0)
+        if (toolCalls is null || toolCalls.Count == 0)
         {
             var text = NodeText(message?["content"]);
             if (string.IsNullOrWhiteSpace(text))
@@ -1520,8 +1550,8 @@ internal sealed class CodexApiProxy
 
     private static async Task WriteSseAsync(NetworkStream stream, JsonObject response)
     {
-        var message = FirstMessage(response);
-        var text = message is null ? "" : NodeText(message["content"]);
+        var (messageIndex, message) = FirstMessage(response);
+        var text = message is null ? "" : TextFromResponseMessage(message);
         var head = Encoding.UTF8.GetBytes(
             "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream; charset=utf-8\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n");
         await stream.WriteAsync(head);
@@ -1543,13 +1573,13 @@ internal sealed class CodexApiProxy
             await WriteEventAsync(stream, "response.output_item.added", new JsonObject
             {
                 ["type"] = "response.output_item.added",
-                ["output_index"] = 0,
+                ["output_index"] = messageIndex,
                 ["item"] = message.DeepClone()
             });
             await WriteEventAsync(stream, "response.content_part.added", new JsonObject
             {
                 ["type"] = "response.content_part.added",
-                ["output_index"] = 0,
+                ["output_index"] = messageIndex,
                 ["content_index"] = 0,
                 ["part"] = new JsonObject
                 {
@@ -1563,7 +1593,7 @@ internal sealed class CodexApiProxy
                 await WriteEventAsync(stream, "response.output_text.delta", new JsonObject
                 {
                     ["type"] = "response.output_text.delta",
-                    ["output_index"] = 0,
+                    ["output_index"] = messageIndex,
                     ["content_index"] = 0,
                     ["delta"] = text
                 });
@@ -1571,14 +1601,14 @@ internal sealed class CodexApiProxy
             await WriteEventAsync(stream, "response.output_text.done", new JsonObject
             {
                 ["type"] = "response.output_text.done",
-                ["output_index"] = 0,
+                ["output_index"] = messageIndex,
                 ["content_index"] = 0,
                 ["text"] = text
             });
             await WriteEventAsync(stream, "response.output_item.done", new JsonObject
             {
                 ["type"] = "response.output_item.done",
-                ["output_index"] = 0,
+                ["output_index"] = messageIndex,
                 ["item"] = message.DeepClone()
             });
         }
@@ -1616,22 +1646,42 @@ internal sealed class CodexApiProxy
         await stream.WriteAsync(done);
     }
 
-    private static JsonObject? FirstMessage(JsonObject response)
+    private static (int Index, JsonObject? Message) FirstMessage(JsonObject response)
     {
         if (response["output"] is not JsonArray output)
         {
-            return null;
+            return (-1, null);
         }
 
-        foreach (var item in output)
+        for (var i = 0; i < output.Count; i++)
         {
-            if (item is JsonObject obj && NodeText(obj["type"]) == "message")
+            if (output[i] is JsonObject obj && NodeText(obj["type"]) == "message")
             {
-                return obj;
+                return (i, obj);
             }
         }
 
-        return null;
+        return (-1, null);
+    }
+
+    private static string TextFromResponseMessage(JsonObject message)
+    {
+        if (message["content"] is JsonArray content)
+        {
+            var parts = new List<string>();
+            foreach (var part in content)
+            {
+                var text = TextFromContentPart(part);
+                if (!string.IsNullOrEmpty(text))
+                {
+                    parts.Add(text);
+                }
+            }
+
+            return string.Join("", parts);
+        }
+
+        return NodeText(message["content"]);
     }
 
     private static async Task WriteEventAsync(NetworkStream stream, string eventName, JsonObject data)

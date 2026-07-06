@@ -29,7 +29,7 @@ public partial class MainWindowViewModel : ObservableObject
         new(
             "opencode_free",
             "免费模型",
-            "free_models",
+            "DeepSeek V4 免费",
             FreeUpstreamBaseUrl,
             "deepseek-v4-flash-free",
             "responses",
