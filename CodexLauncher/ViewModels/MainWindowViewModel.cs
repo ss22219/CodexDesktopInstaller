@@ -724,34 +724,64 @@ public partial class MainWindowViewModel : ObservableObject
         var codexExe = FindCodexExe();
         if (codexExe is null)
         {
-            throw new FileNotFoundException("未找到 Codex.exe");
+            throw new FileNotFoundException("未找到 Codex");
         }
 
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = codexExe,
-            WorkingDirectory = Path.GetDirectoryName(codexExe),
-            UseShellExecute = false
-        };
+        var codexArgs = new List<string>();
         if (IsFreeProvider)
         {
-            AddOfflineSafeCodexArguments(startInfo);
+            AddOfflineSafeCodexArguments(codexArgs);
         }
-        PrependBundledNodeToPath(startInfo);
+
+        ProcessStartInfo startInfo;
+        var codexApp = FindCodexApp();
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && codexApp is not null)
+        {
+            startInfo = new ProcessStartInfo
+            {
+                FileName = "/usr/bin/open",
+                UseShellExecute = false
+            };
+            startInfo.ArgumentList.Add("-n");
+            startInfo.ArgumentList.Add(codexApp);
+            if (codexArgs.Count > 0)
+            {
+                startInfo.ArgumentList.Add("--args");
+                foreach (var arg in codexArgs)
+                {
+                    startInfo.ArgumentList.Add(arg);
+                }
+            }
+        }
+        else
+        {
+            startInfo = new ProcessStartInfo
+            {
+                FileName = codexExe,
+                WorkingDirectory = Path.GetDirectoryName(codexExe),
+                UseShellExecute = false
+            };
+            foreach (var arg in codexArgs)
+            {
+                startInfo.ArgumentList.Add(arg);
+            }
+            PrependBundledNodeToPath(startInfo);
+        }
+
         Process.Start(startInfo);
     }
 
-    private static void AddOfflineSafeCodexArguments(ProcessStartInfo startInfo)
+    private static void AddOfflineSafeCodexArguments(ICollection<string> args)
     {
-        startInfo.ArgumentList.Add("--no-first-run");
-        startInfo.ArgumentList.Add("--no-default-browser-check");
-        startInfo.ArgumentList.Add("--disable-background-networking");
-        startInfo.ArgumentList.Add("--disable-component-update");
-        startInfo.ArgumentList.Add("--disable-domain-reliability");
-        startInfo.ArgumentList.Add("--disable-sync");
-        startInfo.ArgumentList.Add("--disable-client-side-phishing-detection");
-        startInfo.ArgumentList.Add("--disable-features=AutofillServerCommunication,CertificateTransparencyComponentUpdater,OptimizationGuideModelDownloading,OptimizationGuideOnDeviceModel,OptimizationHints,OptimizationHintsFetching,OptimizationTargetPrediction,SegmentationPlatform,MediaRouter");
-        startInfo.ArgumentList.Add("--host-resolver-rules=MAP chat.openai.com 0.0.0.0,MAP chatgpt.com 0.0.0.0,MAP ab.chatgpt.com 0.0.0.0,MAP a.nel.cloudflare.com 0.0.0.0,MAP android.clients.google.com 0.0.0.0,MAP clients2.google.com 0.0.0.0,MAP dl.google.com 0.0.0.0,MAP optimizationguide-pa.googleapis.com 0.0.0.0,MAP redirector.gvt1.com 0.0.0.0,MAP mtalk.google.com 0.0.0.0,EXCLUDE localhost,EXCLUDE 127.0.0.1");
+        args.Add("--no-first-run");
+        args.Add("--no-default-browser-check");
+        args.Add("--disable-background-networking");
+        args.Add("--disable-component-update");
+        args.Add("--disable-domain-reliability");
+        args.Add("--disable-sync");
+        args.Add("--disable-client-side-phishing-detection");
+        args.Add("--disable-features=AutofillServerCommunication,CertificateTransparencyComponentUpdater,OptimizationGuideModelDownloading,OptimizationGuideOnDeviceModel,OptimizationHints,OptimizationHintsFetching,OptimizationTargetPrediction,SegmentationPlatform,MediaRouter");
+        args.Add("--host-resolver-rules=MAP chat.openai.com 0.0.0.0,MAP chatgpt.com 0.0.0.0,MAP ab.chatgpt.com 0.0.0.0,MAP a.nel.cloudflare.com 0.0.0.0,MAP android.clients.google.com 0.0.0.0,MAP clients2.google.com 0.0.0.0,MAP dl.google.com 0.0.0.0,MAP optimizationguide-pa.googleapis.com 0.0.0.0,MAP redirector.gvt1.com 0.0.0.0,MAP mtalk.google.com 0.0.0.0,EXCLUDE localhost,EXCLUDE 127.0.0.1");
     }
 
     private bool RestartCodexIfRunning()
@@ -1026,12 +1056,23 @@ public partial class MainWindowViewModel : ObservableObject
             Path.Combine(baseDir, "Codex.exe"),
             Path.Combine(baseDir, "..", "Codex.exe"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Codex", "Codex.exe"),
-            Path.Combine(baseDir, "Codex.app", "Contents", "MacOS", macExecutableName),
-            Path.Combine(baseDir, "..", "Resources", "Codex.app", "Contents", "MacOS", macExecutableName),
-            "/Applications/Codex.app/Contents/MacOS/Codex"
+            "/Applications/Codex.app/Contents/MacOS/Codex",
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "Codex.app", "Contents", "MacOS", macExecutableName)
         };
 
         return candidates.Select(Path.GetFullPath).FirstOrDefault(File.Exists);
+    }
+
+    private static string? FindCodexApp()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var candidates = new[]
+        {
+            "/Applications/Codex.app",
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "Codex.app")
+        };
+
+        return candidates.Select(Path.GetFullPath).FirstOrDefault(Directory.Exists);
     }
 
     private static void PrependBundledNodeToPath(ProcessStartInfo startInfo)

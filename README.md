@@ -24,9 +24,13 @@
 
 ### macOS
 
-下载并解压对应的 macOS 安装包，然后打开 `安装 Codex.command`。
+先从官网安装 Codex，并确认 `Codex.app` 已经在 Applications 文件夹里。
 
-如果 macOS 提示无法打开，右键点击 `安装 Codex.command`，选择“打开”。
+然后下载并解压对应的 macOS 启动器安装包，打开 `.dmg`，把 `Codex 启动.app` 拖到 Applications。
+
+以后从“应用程序”打开 `Codex 启动.app`，在启动器里选择模式后点击“保存并启动 Codex”。启动器会使用你已经安装好的官方 Codex，不会替换它。
+
+如果 macOS 提示无法打开，右键点击 App，选择“打开”。
 
 ## 说明
 
