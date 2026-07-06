@@ -8,6 +8,7 @@ namespace CodexInstaller.Core;
 public class InstallEngine
 {
     private const string LauncherExeName = "Codex 启动.exe";
+    private const string ShortcutName = "Codex 免费启动.lnk";
     private const string FreeProviderBaseUrl = "http://127.0.0.1:17631/v1";
     private const string FreeDefaultModel = "deepseek-v4-flash-free";
     private static readonly string[] FreeModels =
@@ -214,7 +215,7 @@ public class InstallEngine
         var configBundle = Path.Combine(_bundleDir, "Config");
         if (!Directory.Exists(configBundle)) return;
 
-        var codexDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+        var codexDir = GetPrivateCodexDir();
         await DeployDirectoryAsync(
             Path.Combine(configBundle, "codex"),
             codexDir,
@@ -230,10 +231,7 @@ public class InstallEngine
         var skillsBundle = Path.Combine(_bundleDir, "Skills");
         if (!Directory.Exists(skillsBundle)) return;
 
-        var skillsDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".codex",
-            "skills");
+        var skillsDir = Path.Combine(GetPrivateCodexDir(), "skills");
         await DeployDirectoryAsync(
             skillsBundle,
             skillsDir,
@@ -247,11 +245,7 @@ public class InstallEngine
         var pluginsBundle = Path.Combine(_bundleDir, "Plugins");
         if (!Directory.Exists(pluginsBundle)) return;
 
-        var pluginsDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".codex",
-            "plugins",
-            "cache");
+        var pluginsDir = Path.Combine(GetPrivateCodexDir(), "plugins", "cache");
         await DeployDirectoryAsync(
             pluginsBundle,
             pluginsDir,
@@ -269,12 +263,7 @@ public class InstallEngine
             return;
         }
 
-        var cacheRoot = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".codex",
-            "plugins",
-            "cache",
-            "openai-bundled");
+        var cacheRoot = Path.Combine(GetPrivateCodexDir(), "plugins", "cache", "openai-bundled");
 
         foreach (var pluginDir in Directory.EnumerateDirectories(sourceRoot))
         {
@@ -343,10 +332,10 @@ public class InstallEngine
             92,
             "正在部署工具运行时");
 
-        EnsureNodeOnUserPath();
+        EnsureNodeOnProcessPath();
     }
 
-    private void EnsureNodeOnUserPath()
+    private void EnsureNodeOnProcessPath()
     {
         var nodeDir = Path.Combine(_targetDir, "Tools", "Node");
         if (!File.Exists(Path.Combine(nodeDir, "node.exe")))
@@ -354,7 +343,6 @@ public class InstallEngine
             return;
         }
 
-        AddDirectoryToPath(nodeDir, EnvironmentVariableTarget.User);
         AddDirectoryToPath(nodeDir, EnvironmentVariableTarget.Process);
     }
 
@@ -527,23 +515,23 @@ public class InstallEngine
 
     private void EnsureNodeReplMcpConfig()
     {
-        var codexDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+        var codexDir = GetPrivateCodexDir();
         Directory.CreateDirectory(codexDir);
 
         var configPath = Path.Combine(codexDir, "config.toml");
         var existing = File.Exists(configPath) ? File.ReadAllText(configPath, Encoding.UTF8) : "";
         var updated = CodexRuntimeConfigurator.EnsureDefaultPluginsEnabled(
             CodexRuntimeConfigurator.EnsureToolFeatureFlags(
-                CodexRuntimeConfigurator.EnsureNodeReplMcpConfig(existing, _targetDir)));
+                CodexRuntimeConfigurator.EnsureNodeReplMcpConfig(existing, _targetDir, codexDir)));
         if (!string.Equals(existing, updated, StringComparison.Ordinal))
         {
             AtomicWrite(configPath, updated);
         }
     }
 
-    private static void EnsureDefaultFreeModelConfig()
+    private void EnsureDefaultFreeModelConfig()
     {
-        var codexDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+        var codexDir = GetPrivateCodexDir();
         Directory.CreateDirectory(codexDir);
 
         var configPath = Path.Combine(codexDir, "config.toml");
@@ -658,9 +646,9 @@ public class InstallEngine
         return "[" + string.Join(", ", values.Select(TomlString)) + "]";
     }
 
-    private static void EnsureDefaultPluginConfig()
+    private void EnsureDefaultPluginConfig()
     {
-        var codexDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+        var codexDir = GetPrivateCodexDir();
         Directory.CreateDirectory(codexDir);
 
         var configPath = Path.Combine(codexDir, "config.toml");
@@ -727,8 +715,8 @@ public class InstallEngine
         }
 
         var launcherDir = Path.GetDirectoryName(launcherExe)!;
-        CreateShortcutAt(Path.Combine(desktop, "Codex 启动.lnk"), launcherExe, launcherDir);
-        CreateShortcutAt(Path.Combine(startMenu, "Codex 启动.lnk"), launcherExe, launcherDir);
+        CreateShortcutAt(Path.Combine(desktop, ShortcutName), launcherExe, launcherDir);
+        CreateShortcutAt(Path.Combine(startMenu, ShortcutName), launcherExe, launcherDir);
     }
 
     private void CreateUninstallEntry()
@@ -751,9 +739,9 @@ public class InstallEngine
             return;
         }
 
-        key.SetValue("DisplayName", "Codex Desktop");
+        key.SetValue("DisplayName", "Codex 免费启动");
         key.SetValue("DisplayVersion", "1.0");
-        key.SetValue("Publisher", "Codex Desktop");
+        key.SetValue("Publisher", "Codex 免费启动");
         key.SetValue("InstallLocation", _targetDir);
         key.SetValue("DisplayIcon", launcherExe);
         key.SetValue("UninstallString", $"\"{launcherExe}\" --uninstall");
@@ -801,6 +789,11 @@ public class InstallEngine
                 await ReportAsync(pct, $"{status}... ({done}/{entries.Length})");
             }
         }
+    }
+
+    private string GetPrivateCodexDir()
+    {
+        return Path.Combine(_targetDir, "Data", ".codex");
     }
 
     private static void CreateShortcutAt(string shortcutPath, string targetPath, string workingDir)

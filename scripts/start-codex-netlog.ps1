@@ -1,5 +1,5 @@
 param(
-    [string]$InstallDir = "$env:LOCALAPPDATA\Programs\Codex",
+    [string]$InstallDir = "$env:LOCALAPPDATA\Programs\CodexFreeLauncher",
     [string]$LogPath = "$env:USERPROFILE\Desktop\codex-netlog.json",
     [switch]$StopExisting
 )
@@ -14,6 +14,7 @@ if (-not (Test-Path -LiteralPath $codexExe)) {
 if ($StopExisting) {
     Get-Process -Name "Codex" -ErrorAction SilentlyContinue | ForEach-Object {
         try {
+            if ($_.MainModule.FileName -ne $codexExe) { return }
             $_.Kill($true)
             $_.WaitForExit(3000)
         } catch {
@@ -36,6 +37,7 @@ $args = @(
     "--remote-debugging-port=9227"
 )
 
+$env:CODEX_HOME = Join-Path $InstallDir "Data\.codex"
 $process = Start-Process -FilePath $codexExe -ArgumentList $args -PassThru
 "started_pid=$($process.Id)"
 "netlog=$LogPath"

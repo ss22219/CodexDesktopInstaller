@@ -8,7 +8,7 @@ public partial class WelcomePageViewModel : ViewModelBase
     [ObservableProperty]
     private string _installDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Programs", "Codex");
+        "Programs", "CodexFreeLauncher");
 
     public event EventHandler<string>? StartInstall;
 

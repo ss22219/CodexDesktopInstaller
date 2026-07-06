@@ -4,6 +4,8 @@
 
 提供了最新的 DeepSeek V4 免费模型，日常任务轻松解决。
 
+安装包采用并行部署思路：尽量使用独立目录和独立配置，不替换用户已经安装的官方 Codex。
+
 ## 下载地址
 
 请到最新版 Release 下载：
@@ -21,6 +23,8 @@
 ### Windows
 
 下载并解压 `CodexInstaller-windows-x64.zip`，然后运行 `Codex 安装.exe`。
+
+Windows 版会安装到独立目录，配置也保存在安装目录下的 `Data` 文件夹里，不写入官方 Codex 的全局配置。
 
 ### macOS
 

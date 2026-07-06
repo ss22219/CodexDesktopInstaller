@@ -11,7 +11,7 @@ public partial class CompletePageViewModel : ViewModelBase
     [ObservableProperty]
     private string installDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Programs", "Codex");
+        "Programs", "CodexFreeLauncher");
 
     [RelayCommand]
     private void Launch()

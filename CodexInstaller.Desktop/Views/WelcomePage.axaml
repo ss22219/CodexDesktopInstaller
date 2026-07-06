@@ -4,9 +4,9 @@
              x:Class="CodexInstaller.Desktop.Views.WelcomePage"
              x:DataType="vm:WelcomePageViewModel">
     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="400" Spacing="16">
-        <TextBlock Text="欢迎安装 Codex Desktop" FontSize="18" FontWeight="SemiBold"
+        <TextBlock Text="欢迎安装 Codex 免费启动" FontSize="18" FontWeight="SemiBold"
                    HorizontalAlignment="Center"/>
-        <TextBlock Text="本安装程序将部署 Codex Desktop 及所有预设配置、Skills 和工作环境。"
+        <TextBlock Text="本安装程序会部署一套独立环境，不替换官方 Codex。"
                    TextWrapping="Wrap" HorizontalAlignment="Center"
                    TextAlignment="Center" Foreground="Gray"/>
         <Separator Margin="0,8"/>
@@ -17,7 +17,7 @@
                     Width="72" Height="36" Margin="8,0,0,0"
                     CornerRadius="8"/>
         </Grid>
-        <TextBlock Text="安装说明：安装后需要自行填入 API Key 等凭证才能使用。"
+        <TextBlock Text="安装说明：默认使用内置免费模型配置，和官方 Codex 环境分开。"
                    TextWrapping="Wrap" FontSize="12" Foreground="#888"/>
         <Button Content="开始安装" Command="{Binding InstallCommand}"
                 HorizontalAlignment="Center" Width="200" Height="40"

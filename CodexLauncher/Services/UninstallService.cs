@@ -77,9 +77,11 @@ $desktop = [Environment]::GetFolderPath('DesktopDirectory')
 $startMenu = [IO.Path]::Combine([Environment]::GetFolderPath('StartMenu'), 'Programs')
 
 @(
+    [IO.Path]::Combine($desktop, 'Codex 免费启动.lnk'),
     [IO.Path]::Combine($desktop, 'Codex 启动.lnk'),
     [IO.Path]::Combine($desktop, 'Codex 启动器.lnk'),
     [IO.Path]::Combine($desktop, 'Codex Desktop.lnk'),
+    [IO.Path]::Combine($startMenu, 'Codex 免费启动.lnk'),
     [IO.Path]::Combine($startMenu, 'Codex 启动.lnk'),
     [IO.Path]::Combine($startMenu, 'Codex 启动器.lnk'),
     [IO.Path]::Combine($startMenu, 'Codex Desktop.lnk')

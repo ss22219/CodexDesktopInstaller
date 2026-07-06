@@ -489,7 +489,7 @@ public partial class MainWindowViewModel : ObservableObject
         var codexInstallDir = Path.GetDirectoryName(codexExe);
         return string.IsNullOrWhiteSpace(codexInstallDir)
             ? existing
-            : CodexRuntimeConfigurator.EnsureNodeReplMcpConfig(existing, codexInstallDir);
+            : CodexRuntimeConfigurator.EnsureNodeReplMcpConfig(existing, codexInstallDir, GetCodexDir());
     }
 
     private static bool TryReadTomlKey(string line, out string key)
@@ -764,6 +764,7 @@ public partial class MainWindowViewModel : ObservableObject
                 WorkingDirectory = Path.GetDirectoryName(codexExe),
                 UseShellExecute = false
             };
+            startInfo.Environment["CODEX_HOME"] = GetCodexDir();
             foreach (var arg in codexArgs)
             {
                 startInfo.ArgumentList.Add(arg);
@@ -931,7 +932,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch
         {
-            return true;
+            return false;
         }
     }
 
@@ -1066,7 +1067,6 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Path.Combine(baseDir, "Codex.exe"),
             Path.Combine(baseDir, "..", "Codex.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Codex", "Codex.exe"),
             "/Applications/Codex.app/Contents/MacOS/Codex",
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "Codex.app", "Contents", "MacOS", macExecutableName)
         };
@@ -1256,6 +1256,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     private static string GetCodexDir()
     {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Data", ".codex"));
+        }
+
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
     }
 

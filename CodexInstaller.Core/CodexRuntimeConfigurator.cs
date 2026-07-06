@@ -18,7 +18,7 @@ public static class CodexRuntimeConfigurator
         "plugins.\"hyperframes@openai-curated-remote\""
     ];
 
-    public static string EnsureNodeReplMcpConfig(string existing, string codexInstallDir)
+    public static string EnsureNodeReplMcpConfig(string existing, string codexInstallDir, string? codexHomeOverride = null)
     {
         var runtimeRoot = Path.Combine(GetCodexResourcesDir(codexInstallDir), "cua_node");
         var binDir = Path.Combine(runtimeRoot, "bin");
@@ -31,9 +31,11 @@ public static class CodexRuntimeConfigurator
             return existing;
         }
 
-        var codexHome = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".codex");
+        var codexHome = string.IsNullOrWhiteSpace(codexHomeOverride)
+            ? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".codex")
+            : codexHomeOverride;
         Directory.CreateDirectory(codexHome);
         var trustedCodePaths = BuildTrustedCodePaths(codexInstallDir, codexHome);
 

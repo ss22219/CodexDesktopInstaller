@@ -28,7 +28,7 @@ function Resolve-InstallDir {
     }
 
     $fallbacks = @(
-        (Join-Path $env:LOCALAPPDATA "Programs\Codex"),
+        (Join-Path $env:LOCALAPPDATA "Programs\CodexFreeLauncher"),
         (Join-Path $env:LOCALAPPDATA "Programs\CodexSandboxSmoke")
     )
 
@@ -80,13 +80,14 @@ $nodeRepl = Join-Path $InstallDir "resources\cua_node\bin\node_repl.exe"
 $nodeModules = Join-Path $InstallDir "resources\cua_node\bin\node_modules"
 $browserClient = Join-Path $InstallDir "resources\plugins\openai-bundled\plugins\browser\scripts\browser-client.mjs"
 $browserClientUri = ([Uri]$browserClient).AbsoluteUri.Replace("'", "%27")
+$privateCodexHome = Join-Path $InstallDir "Data\.codex"
 
 Add-Check $checks "Codex.exe exists" (Test-Path -LiteralPath (Join-Path $InstallDir "Codex.exe") -PathType Leaf) $InstallDir
 Add-Check $checks "node_repl exists" (Test-Path -LiteralPath $nodeRepl -PathType Leaf) $nodeRepl
 Add-Check $checks "browser client exists" (Test-Path -LiteralPath $browserClient -PathType Leaf) $browserClient
 
 $trustedCodePaths = @(
-    (Join-Path $env:USERPROFILE ".codex"),
+    $privateCodexHome,
     (Join-Path $InstallDir "resources\plugins"),
     (Join-Path $InstallDir "resources\cua_node")
 ) -join [IO.Path]::PathSeparator
@@ -180,7 +181,7 @@ $inputText += "`n"
 
 $env:NODE_REPL_NODE_PATH = $node
 $env:NODE_REPL_NODE_MODULE_DIRS = $nodeModules
-$env:CODEX_HOME = Join-Path $env:USERPROFILE ".codex"
+$env:CODEX_HOME = $privateCodexHome
 $env:NODE_REPL_TRUSTED_CODE_PATHS = $trustedCodePaths
 $env:NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = $browserHashes
 $env:BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"

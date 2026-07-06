@@ -76,7 +76,7 @@ try {
     if (-not (Test-Path -LiteralPath `$sevenZip)) { throw "Missing 7z.exe: `$sevenZip" }
     if (-not (Test-Path -LiteralPath `$desktopArchive)) { throw "Missing CodexDesktop.7z: `$desktopArchive" }
 
-    `$installDir = Join-Path `$env:LOCALAPPDATA 'Programs\Codex'
+    `$installDir = Join-Path `$env:LOCALAPPDATA 'Programs\CodexFreeLauncher'
     if (Test-Path -LiteralPath `$installDir) { Remove-Item -LiteralPath `$installDir -Recurse -Force }
     New-Item -ItemType Directory -Path `$installDir | Out-Null
     & `$sevenZip x `$desktopArchive "-o`$installDir" -y -aoa -bb0 -bso0 -bsp0
@@ -90,7 +90,7 @@ try {
     if (-not (Test-Path -LiteralPath `$codexExe)) { throw "Installed Codex.exe not found: `$codexExe" }
     if (-not (Test-Path -LiteralPath `$proxyExe)) { throw "Installed CodexApiProxy.exe not found: `$proxyExe" }
 
-    `$codexDir = Join-Path `$env:USERPROFILE '.codex'
+    `$codexDir = Join-Path `$installDir 'Data\.codex'
     New-Item -ItemType Directory -Path `$codexDir -Force | Out-Null
     `$modelCatalog = Join-Path `$codexDir 'codex-launcher-model-catalog.json'
     `$catalogJson = @'

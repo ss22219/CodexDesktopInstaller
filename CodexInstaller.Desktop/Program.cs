@@ -35,7 +35,7 @@ sealed class Program
             installDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "Programs",
-                "Codex");
+                "CodexFreeLauncher");
         }
 
         TryGetOption(args, "--log", out var logPath);

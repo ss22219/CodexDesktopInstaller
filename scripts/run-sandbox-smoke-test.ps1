@@ -185,8 +185,9 @@ try {
     $node = Join-Path $installDir "resources\cua_node\bin\node.exe"
     $nodeRepl = Join-Path $installDir "resources\cua_node\bin\node_repl.exe"
     $nodeModules = Join-Path $installDir "resources\cua_node\bin\node_modules"
+    $privateCodexHome = Join-Path $installDir "Data\.codex"
     $trustedCodePaths = @(
-        (Join-Path $env:USERPROFILE ".codex"),
+        $privateCodexHome,
         (Join-Path $installDir "resources\plugins"),
         (Join-Path $installDir "resources\cua_node")
     ) -join [IO.Path]::PathSeparator
@@ -280,7 +281,7 @@ try {
 
     $env:NODE_REPL_NODE_PATH = $node
     $env:NODE_REPL_NODE_MODULE_DIRS = $nodeModules
-    $env:CODEX_HOME = Join-Path $env:USERPROFILE ".codex"
+    $env:CODEX_HOME = $privateCodexHome
     $env:NODE_REPL_TRUSTED_CODE_PATHS = $trustedCodePaths
     $env:NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = $browserClientHashes
     $env:BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
@@ -303,8 +304,8 @@ try {
     $proxyProcess = Start-Process -FilePath $proxy -ArgumentList "--self-test" -RedirectStandardOutput $proxyOut -RedirectStandardError $proxyErr -Wait -PassThru -WindowStyle Hidden
     Add-Check "api proxy tool-result self-test" ($proxyProcess.ExitCode -eq 0) "exit=$($proxyProcess.ExitCode)"
 
-    $config = Join-Path $env:USERPROFILE ".codex\config.toml"
-    Test-FileExists "codex config exists" $config
+    $config = Join-Path $installDir "Data\.codex\config.toml"
+    Test-FileExists "private codex config exists" $config
     $configText = Get-Content -LiteralPath $config -Raw
     Add-Check "default free model configured" ($configText -like '*model = "deepseek-v4-flash-free"*') ""
     Add-Check "custom provider configured" ($configText -like '*model_provider = "custom"*' -and $configText -like '*[model_providers.custom]*') ""
@@ -320,8 +321,11 @@ try {
     Add-Check "computer use plugin enabled" ($configText -match '(?s)\[plugins\."computer-use@openai-bundled"\].*?enabled\s*=\s*true') ""
     Add-Check "hyperframes plugin enabled" ($configText -match '(?s)\[plugins\."hyperframes@openai-curated-remote"\].*?enabled\s*=\s*true') ""
 
+    $userConfig = Join-Path $env:USERPROFILE ".codex\config.toml"
+    Add-Check "user codex config not required" ($config -ne $userConfig) ""
+
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-    Add-Check "bundled node in user PATH" ($userPath -like "*CodexSandboxSmoke*Tools*Node*") ""
+    Add-Check "bundled node not added to user PATH" ($userPath -notlike "*CodexSandboxSmoke*Tools*Node*") ""
 
     $success = -not ($checks | Where-Object { -not $_.ok } | Select-Object -First 1)
 } catch {
