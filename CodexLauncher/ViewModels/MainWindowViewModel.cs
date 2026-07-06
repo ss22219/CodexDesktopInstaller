@@ -167,7 +167,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             SaveCurrentProfile();
             WriteCodexFiles();
-            var restarted = RestartCodexIfRunning();
+            var restarted = !RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && RestartCodexIfRunning();
             StatusText = restarted ? "配置已保存，Codex 已重启。" : "配置已保存。";
         }
         catch (Exception ex)
@@ -184,8 +184,11 @@ public partial class MainWindowViewModel : ObservableObject
             SaveCurrentProfile();
             EnsureBundledResourcesInstalled();
             WriteCodexFiles();
-            StopRunningCodex();
-            StopStaleNodeReplProcesses();
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                StopRunningCodex();
+                StopStaleNodeReplProcesses();
+            }
             StartApiProxyIfNeeded();
             LaunchCodex();
             StatusText = "配置已保存，正在启动 Codex。";
@@ -786,6 +789,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool RestartCodexIfRunning()
     {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return false;
+        }
+
         if (!IsCodexRunning())
         {
             return false;
@@ -965,8 +973,11 @@ public partial class MainWindowViewModel : ObservableObject
         startInfo.ArgumentList.Add(ApiProxyPort.ToString());
         startInfo.ArgumentList.Add("--upstream");
         startInfo.ArgumentList.Add(FreeUpstreamBaseUrl);
-        startInfo.ArgumentList.Add("--codex-exe");
-        startInfo.ArgumentList.Add(codexExe);
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            startInfo.ArgumentList.Add("--codex-exe");
+            startInfo.ArgumentList.Add(codexExe);
+        }
 
         Process.Start(startInfo);
 
