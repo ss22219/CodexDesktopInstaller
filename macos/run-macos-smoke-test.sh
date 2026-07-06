@@ -91,6 +91,7 @@ require_file "$DMG" "DMG inside zip"
 
 MOUNT="$(hdiutil attach "$DMG" -nobrowse -readonly | awk '/\/Volumes\// {for (i=3;i<=NF;i++) printf (i==3?$i:" "$i); print ""}' | tail -n 1)"
 require_dir "$MOUNT/Codex 启动.app" "launcher app in DMG"
+require_dir "$MOUNT/Codex 免费版.app" "modified Codex app in DMG"
 [[ -L "$MOUNT/Applications" ]] || fail "Applications shortcut missing"
 pass "Applications shortcut"
 
@@ -98,13 +99,21 @@ pass "Applications shortcut"
 pass "official Codex.app is not bundled"
 
 APP="$MOUNT/Codex 启动.app"
+FREE_APP="$MOUNT/Codex 免费版.app"
 LAUNCHER="$APP/Contents/MacOS/CodexLauncher"
 PROXY="$APP/Contents/MacOS/CodexApiProxy"
+FREE_CODEX="$FREE_APP/Contents/MacOS/Codex"
 require_file "$LAUNCHER" "launcher executable"
 require_file "$PROXY" "proxy executable"
+require_file "$FREE_CODEX" "modified Codex executable"
 [[ -x "$LAUNCHER" ]] || fail "launcher executable bit missing"
 [[ -x "$PROXY" ]] || fail "proxy executable bit missing"
+[[ -x "$FREE_CODEX" ]] || fail "modified Codex executable bit missing"
 pass "executables are runnable"
+
+BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$FREE_APP/Contents/Info.plist")"
+[[ "$BUNDLE_ID" == "com.canghe.codex-free" ]] || fail "modified Codex bundle id is not isolated: $BUNDLE_ID"
+pass "modified Codex bundle id is isolated"
 
 if ! "$PROXY" --self-test >/tmp/codex-proxy-self-test.out 2>/tmp/codex-proxy-self-test.err; then
   if grep -q 'Bad CPU type in executable' /tmp/codex-proxy-self-test.err; then

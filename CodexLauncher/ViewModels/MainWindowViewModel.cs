@@ -745,11 +745,16 @@ public partial class MainWindowViewModel : ObservableObject
                 FileName = "/usr/bin/open",
                 UseShellExecute = false
             };
-            startInfo.ArgumentList.Add("-a");
-            startInfo.ArgumentList.Add("Codex");
+            startInfo.ArgumentList.Add("-n");
+            startInfo.ArgumentList.Add("--env");
+            startInfo.ArgumentList.Add($"CODEX_HOME={GetCodexDir()}");
+            startInfo.ArgumentList.Add("--env");
+            startInfo.ArgumentList.Add($"CODEX_FREE_HOME={GetMacAppSupportDir()}");
+            startInfo.ArgumentList.Add(codexApp);
+            startInfo.ArgumentList.Add("--args");
+            startInfo.ArgumentList.Add($"--user-data-dir={Path.Combine(GetMacAppSupportDir(), "UserData")}");
             if (codexArgs.Count > 0)
             {
-                startInfo.ArgumentList.Add("--args");
                 foreach (var arg in codexArgs)
                 {
                     startInfo.ArgumentList.Add(arg);
@@ -773,31 +778,6 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         Process.Start(startInfo);
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && codexApp is not null)
-        {
-            ActivateMacCodex();
-        }
-    }
-
-    private static void ActivateMacCodex()
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "/usr/bin/osascript",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                ArgumentList =
-                {
-                    "-e",
-                    "tell application id \"com.openai.codex\" to activate"
-                }
-            });
-        }
-        catch
-        {
-        }
     }
 
     private static void AddOfflineSafeCodexArguments(ICollection<string> args)
@@ -1092,8 +1072,11 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Path.Combine(baseDir, "Codex.exe"),
             Path.Combine(baseDir, "..", "Codex.exe"),
-            "/Applications/Codex.app/Contents/MacOS/Codex",
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "Codex.app", "Contents", "MacOS", macExecutableName)
+            Path.Combine("/Applications", "Codex 免费版.app", "Contents", "MacOS", macExecutableName),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "Codex 免费版.app", "Contents", "MacOS", macExecutableName),
+            Path.Combine(baseDir, "Codex 免费版.app", "Contents", "MacOS", macExecutableName),
+            Path.Combine(baseDir, "..", "Codex 免费版.app", "Contents", "MacOS", macExecutableName),
+            Path.Combine(baseDir, "..", "Resources", "Codex 免费版.app", "Contents", "MacOS", macExecutableName)
         };
 
         return candidates.Select(Path.GetFullPath).FirstOrDefault(File.Exists);
@@ -1104,8 +1087,11 @@ public partial class MainWindowViewModel : ObservableObject
         var baseDir = AppContext.BaseDirectory;
         var candidates = new[]
         {
-            "/Applications/Codex.app",
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "Codex.app")
+            Path.Combine("/Applications", "Codex 免费版.app"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "Codex 免费版.app"),
+            Path.Combine(baseDir, "Codex 免费版.app"),
+            Path.Combine(baseDir, "..", "Codex 免费版.app"),
+            Path.Combine(baseDir, "..", "Resources", "Codex 免费版.app")
         };
 
         return candidates.Select(Path.GetFullPath).FirstOrDefault(Directory.Exists);
@@ -1139,8 +1125,11 @@ public partial class MainWindowViewModel : ObservableObject
             Path.Combine(baseDir, "Tools", "Node"),
             Path.Combine(baseDir, "..", "Tools", "Node"),
             Path.Combine(baseDir, "..", "..", "Tools", "Node"),
-            Path.Combine(baseDir, "Codex.app", "Contents", "Resources", "cua_node", "bin"),
-            Path.Combine(baseDir, "..", "Resources", "Codex.app", "Contents", "Resources", "cua_node", "bin")
+            Path.Combine("/Applications", "Codex 免费版.app", "Contents", "Resources", "cua_node", "bin"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "Codex 免费版.app", "Contents", "Resources", "cua_node", "bin"),
+            Path.Combine(baseDir, "Codex 免费版.app", "Contents", "Resources", "cua_node", "bin"),
+            Path.Combine(baseDir, "..", "Codex 免费版.app", "Contents", "Resources", "cua_node", "bin"),
+            Path.Combine(baseDir, "..", "Resources", "Codex 免费版.app", "Contents", "Resources", "cua_node", "bin")
         };
 
         return candidates
@@ -1286,7 +1275,21 @@ public partial class MainWindowViewModel : ObservableObject
             return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Data", ".codex"));
         }
 
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return Path.Combine(GetMacAppSupportDir(), ".codex");
+        }
+
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+    }
+
+    private static string GetMacAppSupportDir()
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "Library",
+            "Application Support",
+            "CodexFreeLauncher");
     }
 
     private static string GetLauncherSettingsDir()
