@@ -61,9 +61,10 @@ dotnet publish "$ROOT/CodexApiProxy/CodexApiProxy.csproj" \
   -o "$PROXY_PUBLISH" \
   /p:PublishAot=true
 
-cp "$LAUNCHER_PUBLISH/CodexLauncher" "$APP_BUNDLE/Contents/MacOS/CodexLauncher"
+cp -R "$LAUNCHER_PUBLISH/." "$APP_BUNDLE/Contents/MacOS/"
 cp "$PROXY_PUBLISH/CodexApiProxy" "$APP_BUNDLE/Contents/MacOS/CodexApiProxy"
 chmod +x "$APP_BUNDLE/Contents/MacOS/CodexLauncher" "$APP_BUNDLE/Contents/MacOS/CodexApiProxy"
+find "$APP_BUNDLE/Contents/MacOS" -name "*.dylib" -type f -exec chmod +x {} \;
 
 ditto "$SOURCE_APP" "$APP_BUNDLE/Contents/Resources/Codex.app"
 
