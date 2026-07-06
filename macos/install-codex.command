@@ -7,11 +7,14 @@ APP_NAME="Codex"
 DMG_PATH=""
 if ls Codex-mac-*.dmg >/dev/null 2>&1; then
   DMG_PATH="$(ls Codex-mac-*.dmg | head -n 1)"
+elif ls CodexInstaller-mac-*.dmg >/dev/null 2>&1; then
+  DMG_PATH="$(ls CodexInstaller-mac-*.dmg | head -n 1)"
 fi
 
-if [ -z "$DMG_PATH" ]; then
+LOCAL_APP="Codex.app"
+if [ ! -d "$LOCAL_APP" ] && [ -z "$DMG_PATH" ]; then
   echo "未找到 Codex macOS 安装镜像。"
-  echo "请确认 Codex-mac-*.dmg 和本文件在同一个文件夹。"
+  echo "请确认 CodexInstaller-mac-*.dmg 或 Codex.app 和本文件在同一个文件夹。"
   read -r -p "按回车退出..."
   exit 1
 fi
@@ -26,17 +29,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
-MOUNT_POINT="$(hdiutil attach "$DMG_PATH" -nobrowse | sed -n 's#.*\(/Volumes/.*\)#\1#p' | head -n 1)"
-if [ -z "$MOUNT_POINT" ] || [ ! -d "$MOUNT_POINT/Codex.app" ]; then
-  echo "无法打开安装镜像。"
-  read -r -p "按回车退出..."
-  exit 1
+APP_SOURCE="$LOCAL_APP"
+if [ ! -d "$APP_SOURCE" ]; then
+  MOUNT_POINT="$(hdiutil attach "$DMG_PATH" -nobrowse | sed -n 's#.*\(/Volumes/.*\)#\1#p' | head -n 1)"
+  if [ -z "$MOUNT_POINT" ] || [ ! -d "$MOUNT_POINT/Codex.app" ]; then
+    echo "无法打开安装镜像。"
+    read -r -p "按回车退出..."
+    exit 1
+  fi
+  APP_SOURCE="$MOUNT_POINT/Codex.app"
 fi
 
 if [ -d "/Applications/Codex.app" ]; then
   rm -rf "/Applications/Codex.app"
 fi
-ditto "$MOUNT_POINT/Codex.app" "/Applications/Codex.app"
+ditto "$APP_SOURCE" "/Applications/Codex.app"
 xattr -dr com.apple.quarantine "/Applications/Codex.app" 2>/dev/null || true
 
 CODEX_HOME="$HOME/.codex"

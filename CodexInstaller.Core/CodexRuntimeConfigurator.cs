@@ -20,10 +20,10 @@ public static class CodexRuntimeConfigurator
 
     public static string EnsureNodeReplMcpConfig(string existing, string codexInstallDir)
     {
-        var runtimeRoot = Path.Combine(codexInstallDir, "resources", "cua_node");
+        var runtimeRoot = Path.Combine(GetCodexResourcesDir(codexInstallDir), "cua_node");
         var binDir = Path.Combine(runtimeRoot, "bin");
-        var nodePath = Path.Combine(binDir, "node.exe");
-        var nodeReplPath = Path.Combine(binDir, "node_repl.exe");
+        var nodePath = Path.Combine(binDir, OperatingSystem.IsWindows() ? "node.exe" : "node");
+        var nodeReplPath = Path.Combine(binDir, OperatingSystem.IsWindows() ? "node_repl.exe" : "node_repl");
         var nodeModules = Path.Combine(binDir, "node_modules");
 
         if (!File.Exists(nodePath) || !File.Exists(nodeReplPath) || !Directory.Exists(nodeModules))
@@ -81,6 +81,19 @@ public static class CodexRuntimeConfigurator
         lines.Add("NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = \"Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative.\"");
 
         return string.Join(Environment.NewLine, TrimBlankLines(lines)) + Environment.NewLine;
+    }
+
+    private static string GetCodexResourcesDir(string codexInstallDir)
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return Path.Combine(codexInstallDir, "resources");
+        }
+
+        var macResources = Path.GetFullPath(Path.Combine(codexInstallDir, "..", "Resources"));
+        return Directory.Exists(macResources)
+            ? macResources
+            : Path.Combine(codexInstallDir, "resources");
     }
 
     public static string EnsureToolFeatureFlags(string existing)

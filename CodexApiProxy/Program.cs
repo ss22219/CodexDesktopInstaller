@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -87,7 +88,9 @@ internal sealed class SingleInstanceMutex : IDisposable
 
     public static SingleInstanceMutex? TryAcquire(int port)
     {
-        var mutexName = $@"Local\CodexApiProxy_{port}";
+        var mutexName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? $@"Local\CodexApiProxy_{port}"
+            : $"CodexApiProxy_{port}";
         var mutex = new Mutex(false, mutexName);
         try
         {

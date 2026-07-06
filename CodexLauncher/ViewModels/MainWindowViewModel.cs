@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -181,6 +182,7 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             SaveCurrentProfile();
+            EnsureBundledResourcesInstalled();
             WriteCodexFiles();
             StopRunningCodex();
             StopStaleNodeReplProcesses();
@@ -826,7 +828,9 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        var runtimeRoot = Path.GetFullPath(Path.Combine(installDir, "resources", "cua_node"));
+        var runtimeRoot = Path.GetFullPath(RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+            ? Path.Combine(installDir, "..", "Resources", "cua_node")
+            : Path.Combine(installDir, "resources", "cua_node"));
         foreach (var process in Process.GetProcessesByName("node_repl"))
         {
             using (process)
@@ -885,7 +889,7 @@ public partial class MainWindowViewModel : ObservableObject
             return actual is null || string.Equals(
                 Path.GetFullPath(actual),
                 Path.GetFullPath(expectedExe),
-                StringComparison.OrdinalIgnoreCase);
+                PathComparison);
         }
         catch
         {
@@ -904,7 +908,7 @@ public partial class MainWindowViewModel : ObservableObject
         var codexExe = FindCodexExe();
         if (codexExe is null)
         {
-            throw new FileNotFoundException("未找到 Codex.exe");
+            throw new FileNotFoundException("未找到 Codex");
         }
 
         StopRunningApiProxy();
@@ -999,11 +1003,15 @@ public partial class MainWindowViewModel : ObservableObject
     private static string? FindProxyExe()
     {
         var baseDir = AppContext.BaseDirectory;
+        var fileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "CodexApiProxy.exe"
+            : "CodexApiProxy";
         var candidates = new[]
         {
-            Path.Combine(baseDir, "CodexApiProxy.exe"),
-            Path.Combine(baseDir, "..", "CodexApiProxy.exe"),
-            Path.Combine(baseDir, "Proxy", "CodexApiProxy.exe")
+            Path.Combine(baseDir, fileName),
+            Path.Combine(baseDir, "..", fileName),
+            Path.Combine(baseDir, "Proxy", fileName),
+            Path.Combine(baseDir, "..", "Resources", fileName)
         };
 
         return candidates.Select(Path.GetFullPath).FirstOrDefault(File.Exists);
@@ -1012,11 +1020,15 @@ public partial class MainWindowViewModel : ObservableObject
     private static string? FindCodexExe()
     {
         var baseDir = AppContext.BaseDirectory;
+        var macExecutableName = "Codex";
         var candidates = new[]
         {
             Path.Combine(baseDir, "Codex.exe"),
             Path.Combine(baseDir, "..", "Codex.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Codex", "Codex.exe")
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Codex", "Codex.exe"),
+            Path.Combine(baseDir, "Codex.app", "Contents", "MacOS", macExecutableName),
+            Path.Combine(baseDir, "..", "Resources", "Codex.app", "Contents", "MacOS", macExecutableName),
+            "/Applications/Codex.app/Contents/MacOS/Codex"
         };
 
         return candidates.Select(Path.GetFullPath).FirstOrDefault(File.Exists);
@@ -1049,12 +1061,14 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Path.Combine(baseDir, "Tools", "Node"),
             Path.Combine(baseDir, "..", "Tools", "Node"),
-            Path.Combine(baseDir, "..", "..", "Tools", "Node")
+            Path.Combine(baseDir, "..", "..", "Tools", "Node"),
+            Path.Combine(baseDir, "Codex.app", "Contents", "Resources", "cua_node", "bin"),
+            Path.Combine(baseDir, "..", "Resources", "Codex.app", "Contents", "Resources", "cua_node", "bin")
         };
 
         return candidates
             .Select(Path.GetFullPath)
-            .FirstOrDefault(path => File.Exists(Path.Combine(path, "node.exe")));
+            .FirstOrDefault(path => File.Exists(Path.Combine(path, RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "node.exe" : "node")));
     }
 
     private static bool SameDirectory(string left, string right)
@@ -1063,11 +1077,63 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var normalizedLeft = Path.GetFullPath(Environment.ExpandEnvironmentVariables(left)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var normalizedRight = Path.GetFullPath(Environment.ExpandEnvironmentVariables(right)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            return string.Equals(normalizedLeft, normalizedRight, StringComparison.OrdinalIgnoreCase);
+            return string.Equals(normalizedLeft, normalizedRight, PathComparison);
         }
         catch
         {
-            return string.Equals(left.TrimEnd('\\', '/'), right.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+            return string.Equals(left.TrimEnd('\\', '/'), right.TrimEnd('\\', '/'), PathComparison);
+        }
+    }
+
+    private static StringComparison PathComparison =>
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+    private static void EnsureBundledResourcesInstalled()
+    {
+        var bundleDir = FindBundleDir();
+        if (bundleDir is null)
+        {
+            return;
+        }
+
+        var codexDir = GetCodexDir();
+        CopyDirectoryIfExists(Path.Combine(bundleDir, "Skills"), Path.Combine(codexDir, "skills"));
+        CopyDirectoryIfExists(Path.Combine(bundleDir, "Plugins"), Path.Combine(codexDir, "plugins", "cache"));
+    }
+
+    private static string? FindBundleDir()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var candidates = new[]
+        {
+            Path.Combine(baseDir, "Bundle"),
+            Path.Combine(baseDir, "..", "Bundle"),
+            Path.Combine(baseDir, "..", "Resources", "Bundle")
+        };
+
+        return candidates.Select(Path.GetFullPath).FirstOrDefault(Directory.Exists);
+    }
+
+    private static void CopyDirectoryIfExists(string source, string target)
+    {
+        if (!Directory.Exists(source))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(target);
+        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+        {
+            var targetFile = Path.Combine(target, Path.GetRelativePath(source, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(targetFile)!);
+            File.Copy(file, targetFile, overwrite: true);
         }
     }
 
