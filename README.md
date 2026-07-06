@@ -1,25 +1,35 @@
-# Codex Desktop Installer
+# Codex 免费 Token 一键部署
 
-Codex Desktop one-click installer distribution for Windows and macOS.
+这是一个面向普通用户的 Codex Desktop 一键安装包，已经打包好 Windows 和 macOS 版本。
 
-## Downloads
+不用自己编译，不用手动改配置，下载对应系统的安装包后按提示运行即可。
 
-Use the latest GitHub Release:
+## 下载地址
 
-- Windows: `CodexInstaller-windows-x64.zip`
-- macOS Apple Silicon: `CodexInstaller-mac-arm64.zip`
-- macOS Intel: `CodexInstaller-mac-x64.zip`
+请到最新版 Release 下载：
 
-## macOS
+[打开下载页面](https://github.com/ss22219/CodexDesktopInstaller/releases/latest)
 
-Unzip the matching macOS package, then open `安装 Codex.command`.
+- Windows x64：`CodexInstaller-windows-x64.zip`
+- macOS Apple Silicon：`CodexInstaller-mac-arm64.zip`
+- macOS Intel：`CodexInstaller-mac-x64.zip`
 
-If macOS blocks the script, right-click it and choose Open.
+不确定自己的 Mac 是哪种芯片时，一般 2020 年之后的 M 系列 Mac 选 Apple Silicon，老款 Intel Mac 选 Intel。
 
-## Windows
+## 使用方法
 
-Unzip the Windows package, then run `Codex 安装.exe`.
+### Windows
 
-## Notes
+下载并解压 `CodexInstaller-windows-x64.zip`，然后运行 `Codex 安装.exe`。
 
-Large application bundles are not stored in git. They are published as GitHub Release assets.
+### macOS
+
+下载并解压对应的 macOS 安装包，然后打开 `安装 Codex.command`。
+
+如果 macOS 提示无法打开，右键点击 `安装 Codex.command`，选择“打开”。
+
+## 说明
+
+这个仓库主要用于分发一键安装包。大型安装文件不会直接放在源码里，而是放在 GitHub Release 下载页。
+
+安装包内已包含基础配置、Skills 和插件缓存，适合快速部署和测试 Codex 桌面版。
