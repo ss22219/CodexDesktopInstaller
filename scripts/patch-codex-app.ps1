@@ -83,6 +83,31 @@ function Update-FirstRegex {
     return 0
 }
 
+function Update-PackageJson {
+    $packageJsonPath = Join-Path $appFolder "package.json"
+    if (!(Test-Path -LiteralPath $packageJsonPath)) {
+        return 0
+    }
+
+    $packageJson = Get-Content -LiteralPath $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $changed = 0
+    if ($packageJson.codexSparkleFeedUrl -ne "") {
+        $packageJson.codexSparkleFeedUrl = ""
+        $changed = 1
+    }
+    if ($packageJson.codexSparklePublicKey -ne "") {
+        $packageJson.codexSparklePublicKey = ""
+        $changed = 1
+    }
+
+    if ($changed) {
+        $packageJson | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $packageJsonPath -Encoding UTF8
+        Write-Host "  PATCHED: disable Sparkle update feed -> package.json" -ForegroundColor DarkGray
+    }
+
+    return $changed
+}
+
 $resolvedAppDir = (Resolve-Path -LiteralPath $AppDir).Path
 $resourcesDir = Join-Path $resolvedAppDir "resources"
 $asarPath = Join-Path $resourcesDir "app.asar"
@@ -106,6 +131,19 @@ if (!(Test-Path -LiteralPath $assetsDir)) {
 $patchCount = 0
 $modelListPatchCount = 0
 $i18nPatchCount = 0
+
+$patchCount += Update-PackageJson
+
+Get-ChildItem -LiteralPath $appFolder -Recurse -File -Include "*.js", "*.cjs", "*.mjs" | ForEach-Object {
+    $patchCount += Update-FileText $_.FullName `
+        'enableUpdater:n.i.shouldIncludeUpdater(a,process.platform,process.env)' `
+        'enableUpdater:!1' `
+        "disable app updater"
+    $patchCount += Update-FileText $_.FullName `
+        'enableSparkle:!0' `
+        'enableSparkle:!1' `
+        "disable Sparkle UI"
+}
 
 Get-ChildItem -LiteralPath $assetsDir -File -Filter "read-service-tier-for-request-*.js" | ForEach-Object {
     $patchCount += Update-FileText $_.FullName `
@@ -218,9 +256,24 @@ if ($patchCount -eq 0) {
     }
 }
 
-Set-Content -LiteralPath (Join-Path $appFolder "codex-installer-patch.txt") -Value "Codex API mode fast/plugins/i18n patch applied." -Encoding UTF8 -NoNewline
+$packageJsonPath = Join-Path $appFolder "package.json"
+if (Test-Path -LiteralPath $packageJsonPath) {
+    $packageJson = Get-Content -LiteralPath $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($packageJson.codexSparkleFeedUrl -or $packageJson.codexSparklePublicKey) {
+        throw "Codex auto-update feed was not disabled."
+    }
+}
+
+Get-ChildItem -LiteralPath $appFolder -Recurse -File -Include "*.js", "*.cjs", "*.mjs" | ForEach-Object {
+    $text = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8
+    if ($text.Contains('enableUpdater:n.i.shouldIncludeUpdater(a,process.platform,process.env)') -or $text.Contains('enableSparkle:!0')) {
+        throw "Codex updater patch was not applied: $($_.FullName)"
+    }
+}
+
+Set-Content -LiteralPath (Join-Path $appFolder "codex-installer-patch.txt") -Value "Codex API mode fast/plugins/i18n/updater patch applied." -Encoding UTF8 -NoNewline
 Remove-Item -LiteralPath $asarPath -Force -ErrorAction SilentlyContinue
 Invoke-Checked -FilePath "npx" -Arguments @("--yes", "@electron/asar", "pack", $appFolder, $asarPath) -WorkingDirectory $resourcesDir
 Remove-Item -LiteralPath $appFolder -Recurse -Force
-Set-Content -LiteralPath (Join-Path $resourcesDir "codex-installer-patch.txt") -Value "Codex API mode fast/plugins/i18n patch applied." -Encoding UTF8 -NoNewline
+Set-Content -LiteralPath (Join-Path $resourcesDir "codex-installer-patch.txt") -Value "Codex API mode fast/plugins/i18n/updater patch applied." -Encoding UTF8 -NoNewline
 Write-Host "  OK: Codex app patch applied and repacked ($patchCount changes)" -ForegroundColor Green

@@ -38,14 +38,36 @@ function updateFileText(file, oldText, newText, label) {
   return 1;
 }
 
+function updatePackageJson() {
+  const packageJsonPath = path.join(appFolder, "package.json");
+  if (!exists(packageJsonPath)) return 0;
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  let changed = 0;
+  if (packageJson.codexSparkleFeedUrl !== "") {
+    packageJson.codexSparkleFeedUrl = "";
+    changed = 1;
+  }
+  if (packageJson.codexSparklePublicKey !== "") {
+    packageJson.codexSparklePublicKey = "";
+    changed = 1;
+  }
+  if (changed) {
+    fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+    console.log("  PATCHED: disable Sparkle update feed -> package.json");
+  }
+  return changed;
+}
+
 function files(globPrefix, globSuffix) {
   return walk(assetsDir, (_full, name) => name.startsWith(globPrefix) && name.endsWith(globSuffix));
 }
 
 const resolvedAppDir = path.resolve(appDir);
-const resourcesDir = resolvedAppDir.endsWith("Contents")
-  ? path.join(resolvedAppDir, "Resources")
-  : path.join(resolvedAppDir, "Contents", "Resources");
+const resourcesDir = exists(path.join(resolvedAppDir, "resources"))
+  ? path.join(resolvedAppDir, "resources")
+  : resolvedAppDir.endsWith("Contents")
+    ? path.join(resolvedAppDir, "Resources")
+    : path.join(resolvedAppDir, "Contents", "Resources");
 const asarPath = path.join(resourcesDir, "app.asar");
 const appFolder = path.join(resourcesDir, "app");
 const assetsDir = path.join(appFolder, "webview", "assets");
@@ -70,6 +92,23 @@ if (!exists(assetsDir)) {
 let patchCount = 0;
 let i18nPatchCount = 0;
 let modelListPatchCount = 0;
+
+patchCount += updatePackageJson();
+
+for (const file of walk(appFolder, (_full, name) => name.endsWith(".js") || name.endsWith(".cjs") || name.endsWith(".mjs"))) {
+  patchCount += updateFileText(
+    file,
+    "enableUpdater:n.i.shouldIncludeUpdater(a,process.platform,process.env)",
+    "enableUpdater:!1",
+    "disable app updater",
+  );
+  patchCount += updateFileText(
+    file,
+    "enableSparkle:!0",
+    "enableSparkle:!1",
+    "disable Sparkle UI",
+  );
+}
 
 for (const file of files("read-service-tier-for-request-", ".js")) {
   patchCount += updateFileText(
@@ -229,7 +268,21 @@ if (patchCount === 0 && !exists(path.join(resourcesDir, "codex-installer-patch.t
   throw new Error("No Codex app patches were applied. The bundled Codex version may have changed.");
 }
 
-fs.writeFileSync(path.join(appFolder, "codex-installer-patch.txt"), "Codex API mode fast/plugins/i18n patch applied.", "utf8");
+const packageJsonPath = path.join(appFolder, "package.json");
+if (exists(packageJsonPath)) {
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  if (packageJson.codexSparkleFeedUrl || packageJson.codexSparklePublicKey) {
+    throw new Error("Codex auto-update feed was not disabled.");
+  }
+}
+for (const file of walk(appFolder, (_full, name) => name.endsWith(".js") || name.endsWith(".cjs") || name.endsWith(".mjs"))) {
+  const text = fs.readFileSync(file, "utf8");
+  if (text.includes("enableUpdater:n.i.shouldIncludeUpdater(a,process.platform,process.env)") || text.includes("enableSparkle:!0")) {
+    throw new Error(`Codex updater patch was not applied: ${file}`);
+  }
+}
+
+fs.writeFileSync(path.join(appFolder, "codex-installer-patch.txt"), "Codex API mode fast/plugins/i18n/updater patch applied.", "utf8");
 fs.rmSync(asarPath, { force: true });
 execFileSync("npx", ["--yes", "@electron/asar", "pack", appFolder, asarPath], {
   cwd: resourcesDir,
@@ -245,5 +298,5 @@ if (exists(infoPlist)) {
   ]);
 }
 fs.rmSync(appFolder, { recursive: true, force: true });
-fs.writeFileSync(path.join(resourcesDir, "codex-installer-patch.txt"), "Codex API mode fast/plugins/i18n patch applied.", "utf8");
+fs.writeFileSync(path.join(resourcesDir, "codex-installer-patch.txt"), "Codex API mode fast/plugins/i18n/updater patch applied.", "utf8");
 console.log(`  OK: Codex app patch applied and repacked (${patchCount} changes)`);
