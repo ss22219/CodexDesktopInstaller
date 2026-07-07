@@ -763,6 +763,8 @@ public partial class MainWindowViewModel : ObservableObject
         }
         else
         {
+            var userDataDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Data", "UserData"));
+            Directory.CreateDirectory(userDataDir);
             startInfo = new ProcessStartInfo
             {
                 FileName = codexExe,
@@ -770,6 +772,8 @@ public partial class MainWindowViewModel : ObservableObject
                 UseShellExecute = false
             };
             startInfo.Environment["CODEX_HOME"] = GetCodexDir();
+            startInfo.Environment["CODEX_FREE_HOME"] = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Data"));
+            startInfo.ArgumentList.Add($"--user-data-dir={userDataDir}");
             foreach (var arg in codexArgs)
             {
                 startInfo.ArgumentList.Add(arg);
