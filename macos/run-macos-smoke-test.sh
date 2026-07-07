@@ -90,16 +90,15 @@ DMG="$(find "$TMPDIR/unzip" -name '*.dmg' -print -quit)"
 require_file "$DMG" "DMG inside zip"
 
 MOUNT="$(hdiutil attach "$DMG" -nobrowse -readonly | awk '/\/Volumes\// {for (i=3;i<=NF;i++) printf (i==3?$i:" "$i); print ""}' | tail -n 1)"
-require_dir "$MOUNT/Codex 启动.app" "launcher app in DMG"
-require_dir "$MOUNT/Codex 免费版.app" "modified Codex app in DMG"
+require_dir "$MOUNT/Codex 免费版.app" "single app in DMG"
 [[ -L "$MOUNT/Applications" ]] || fail "Applications shortcut missing"
 pass "Applications shortcut"
 
 [[ ! -e "$MOUNT/Codex.app" ]] || fail "official Codex.app must not be bundled"
 pass "official Codex.app is not bundled"
 
-APP="$MOUNT/Codex 启动.app"
-FREE_APP="$MOUNT/Codex 免费版.app"
+APP="$MOUNT/Codex 免费版.app"
+FREE_APP="$APP/Contents/Resources/Codex.app"
 LAUNCHER="$APP/Contents/MacOS/CodexLauncher"
 PROXY="$APP/Contents/MacOS/CodexApiProxy"
 FREE_CODEX="$FREE_APP/Contents/MacOS/Codex"
@@ -112,8 +111,11 @@ require_file "$FREE_CODEX" "modified Codex executable"
 pass "executables are runnable"
 
 BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$FREE_APP/Contents/Info.plist")"
-[[ "$BUNDLE_ID" == "com.canghe.codex-free" ]] || fail "modified Codex bundle id is not isolated: $BUNDLE_ID"
+[[ "$BUNDLE_ID" == "com.canghe.codex-free.runtime" ]] || fail "modified Codex bundle id is not isolated: $BUNDLE_ID"
 pass "modified Codex bundle id is isolated"
+
+[[ -f "$FREE_APP/Contents/Resources/codex-installer-patch.txt" ]] || fail "Codex web patch marker missing"
+pass "Codex web patch marker"
 
 if ! "$PROXY" --self-test >/tmp/codex-proxy-self-test.out 2>/tmp/codex-proxy-self-test.err; then
   if grep -q 'Bad CPU type in executable' /tmp/codex-proxy-self-test.err; then

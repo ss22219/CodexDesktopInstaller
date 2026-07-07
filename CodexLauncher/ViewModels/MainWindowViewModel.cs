@@ -1076,6 +1076,8 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Path.Combine(baseDir, "Codex.exe"),
             Path.Combine(baseDir, "..", "Codex.exe"),
+            Path.Combine(baseDir, "..", "Resources", "Codex.app", "Contents", "MacOS", macExecutableName),
+            Path.Combine(baseDir, "Codex.app", "Contents", "MacOS", macExecutableName),
             Path.Combine("/Applications", "Codex 免费版.app", "Contents", "MacOS", macExecutableName),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "Codex 免费版.app", "Contents", "MacOS", macExecutableName),
             Path.Combine(baseDir, "Codex 免费版.app", "Contents", "MacOS", macExecutableName),
@@ -1091,6 +1093,8 @@ public partial class MainWindowViewModel : ObservableObject
         var baseDir = AppContext.BaseDirectory;
         var candidates = new[]
         {
+            Path.Combine(baseDir, "..", "Resources", "Codex.app"),
+            Path.Combine(baseDir, "Codex.app"),
             Path.Combine("/Applications", "Codex 免费版.app"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "Codex 免费版.app"),
             Path.Combine(baseDir, "Codex 免费版.app"),
@@ -1129,6 +1133,8 @@ public partial class MainWindowViewModel : ObservableObject
             Path.Combine(baseDir, "Tools", "Node"),
             Path.Combine(baseDir, "..", "Tools", "Node"),
             Path.Combine(baseDir, "..", "..", "Tools", "Node"),
+            Path.Combine(baseDir, "..", "Resources", "Codex.app", "Contents", "Resources", "cua_node", "bin"),
+            Path.Combine(baseDir, "Codex.app", "Contents", "Resources", "cua_node", "bin"),
             Path.Combine("/Applications", "Codex 免费版.app", "Contents", "Resources", "cua_node", "bin"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications", "Codex 免费版.app", "Contents", "Resources", "cua_node", "bin"),
             Path.Combine(baseDir, "Codex 免费版.app", "Contents", "Resources", "cua_node", "bin"),

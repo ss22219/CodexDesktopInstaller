@@ -15,11 +15,11 @@ VERSION="26.623.101652"
 PUBLISH_ROOT="$ROOT/artifacts/macos-$ARCH"
 LAUNCHER_PUBLISH="$PUBLISH_ROOT/launcher"
 PROXY_PUBLISH="$PUBLISH_ROOT/proxy"
-APP_BUNDLE="$PUBLISH_ROOT/Codex 启动.app"
-FREE_CODEX_APP="$PUBLISH_ROOT/Codex 免费版.app"
+APP_BUNDLE="$PUBLISH_ROOT/Codex 免费版.app"
+EMBEDDED_CODEX_APP="$APP_BUNDLE/Contents/Resources/Codex.app"
 DMG_STAGE="$PUBLISH_ROOT/dmg-stage"
 DIST="$ROOT/dist-macos/CodexInstaller-mac-$ARCH"
-DMG="$DIST/CodexLauncher-mac-$ARCH-$VERSION.dmg"
+DMG="$DIST/CodexFree-mac-$ARCH-$VERSION.dmg"
 REBUILD_ROOT="$ROOT/../CodexDesktop-Rebuild"
 REBUILD_PLATFORM="mac-$ARCH"
 REBUILD_APP="$REBUILD_ROOT/out/$REBUILD_PLATFORM/Codex.app"
@@ -53,12 +53,12 @@ patch_bundled_codex_identity() {
   local app="$1"
   local plist="$app/Contents/Info.plist"
 
-  /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.canghe.codex-free" "$plist" 2>/dev/null || \
-    /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string com.canghe.codex-free" "$plist"
-  /usr/libexec/PlistBuddy -c "Set :CFBundleName Codex 免费版" "$plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Codex 免费版" "$plist" 2>/dev/null || \
-    /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string Codex 免费版" "$plist"
-  /usr/libexec/PlistBuddy -c "Set :CrProductDirName com.canghe.codex-free" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.canghe.codex-free.runtime" "$plist" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string com.canghe.codex-free.runtime" "$plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleName Codex Runtime" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Codex Runtime" "$plist" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string Codex Runtime" "$plist"
+  /usr/libexec/PlistBuddy -c "Set :CrProductDirName com.canghe.codex-free.runtime" "$plist" 2>/dev/null || true
   /usr/libexec/PlistBuddy -c "Set :BundleSigningBaseName CodexFree" "$plist" 2>/dev/null || true
   /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$plist" 2>/dev/null || true
 
@@ -84,8 +84,9 @@ dotnet publish "$ROOT/CodexApiProxy/CodexApiProxy.csproj" \
 
 cp -R "$LAUNCHER_PUBLISH/." "$APP_BUNDLE/Contents/MacOS/"
 cp "$PROXY_PUBLISH/CodexApiProxy" "$APP_BUNDLE/Contents/MacOS/CodexApiProxy"
-ditto "$REBUILD_APP" "$FREE_CODEX_APP"
-patch_bundled_codex_identity "$FREE_CODEX_APP"
+ditto "$REBUILD_APP" "$EMBEDDED_CODEX_APP"
+node "$ROOT/scripts/patch-codex-app.mjs" "$EMBEDDED_CODEX_APP"
+patch_bundled_codex_identity "$EMBEDDED_CODEX_APP"
 chmod +x "$APP_BUNDLE/Contents/MacOS/CodexLauncher" "$APP_BUNDLE/Contents/MacOS/CodexApiProxy"
 find "$APP_BUNDLE/Contents/MacOS" -name "*.dylib" -type f -exec chmod +x {} \;
 
@@ -116,11 +117,11 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<'EOF'
   <key>CFBundleIconFile</key>
   <string>app.icns</string>
   <key>CFBundleIdentifier</key>
-  <string>com.canghe.codex-launcher</string>
+  <string>com.canghe.codex-free</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>Codex 启动</string>
+  <string>Codex 免费版</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -139,36 +140,35 @@ xattr -dr com.apple.quarantine "$APP_BUNDLE" 2>/dev/null || true
 codesign --force --deep --sign - "$APP_BUNDLE" >/dev/null
 
 mkdir -p "$DMG_STAGE"
-ditto "$APP_BUNDLE" "$DMG_STAGE/Codex 启动.app"
-ditto "$FREE_CODEX_APP" "$DMG_STAGE/Codex 免费版.app"
+ditto "$APP_BUNDLE" "$DMG_STAGE/Codex 免费版.app"
 ln -s /Applications "$DMG_STAGE/Applications"
 cat > "$DMG_STAGE/使用说明.txt" <<'EOF'
 Codex macOS 并行版安装说明
 
-1. 把“Codex 启动.app”和“Codex 免费版.app”都拖到 Applications 文件夹
-2. 以后从“应用程序”打开“Codex 启动”
+1. 把“Codex 免费版.app”拖到 Applications 文件夹
+2. 以后从“应用程序”打开“Codex 免费版”
 3. 在启动器里选择免费模型 / OpenAI 官方 / 自定义 API
 4. 点击“保存并启动 Codex”
-5. 启动的是修改后的“Codex 免费版.app”，不会替换官方 Codex.app
+5. 启动的是内置的修改版 Codex，不会替换官方 Codex.app
 
 如果 macOS 提示无法打开:
-右键点击“Codex 启动.app”，选择“打开”。
+右键点击“Codex 免费版.app”，选择“打开”。
 EOF
 
-hdiutil create -volname "Codex Launcher" -srcfolder "$DMG_STAGE" -ov -format UDZO "$DMG" >/dev/null
+hdiutil create -volname "Codex 免费版" -srcfolder "$DMG_STAGE" -ov -format UDZO "$DMG" >/dev/null
 
 cat > "$DIST/README.txt" <<'EOF'
 Codex macOS 并行版安装包
 
 使用方法:
 1. 打开 .dmg
-2. 把“Codex 启动.app”和“Codex 免费版.app”都拖到 Applications
-3. 从“应用程序”打开“Codex 启动”
+2. 把“Codex 免费版.app”拖到 Applications
+3. 从“应用程序”打开“Codex 免费版”
 4. 选择模式后点击“保存并启动 Codex”
-5. 启动的是修改后的“Codex 免费版.app”，不会替换官方 Codex.app
+5. 启动的是内置的修改版 Codex，不会替换官方 Codex.app
 
 如果 macOS 提示无法打开:
-右键点击“Codex 启动.app”，选择“打开”。
+右键点击“Codex 免费版.app”，选择“打开”。
 EOF
 
 cd "$(dirname "$DIST")"

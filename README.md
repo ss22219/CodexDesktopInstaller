@@ -30,9 +30,9 @@ Windows 版会安装到独立目录，配置也保存在安装目录下的 `Data
 
 下载并解压对应的 macOS 安装包，打开 `.dmg`。
 
-把 `Codex 启动.app` 和 `Codex 免费版.app` 都拖到 Applications。
+把 `Codex 免费版.app` 拖到 Applications。
 
-以后从“应用程序”打开 `Codex 启动.app`，在启动器里选择模式后点击“保存并启动 Codex”。启动器会打开修改后的 `Codex 免费版.app`，不会替换或关闭官方 Codex。
+以后从“应用程序”打开 `Codex 免费版.app`，在启动器里选择模式后点击“保存并启动 Codex”。它会打开内置的修改版 Codex，不会替换或关闭官方 Codex。
 
 如果 macOS 提示无法打开，右键点击 App，选择“打开”。
 
