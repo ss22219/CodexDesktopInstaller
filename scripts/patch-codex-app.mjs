@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -234,6 +235,15 @@ execFileSync("npx", ["--yes", "@electron/asar", "pack", appFolder, asarPath], {
   cwd: resourcesDir,
   stdio: "inherit",
 });
+const infoPlist = path.join(path.dirname(resourcesDir), "Info.plist");
+if (exists(infoPlist)) {
+  const asarHash = crypto.createHash("sha256").update(fs.readFileSync(asarPath)).digest("hex");
+  execFileSync("/usr/libexec/PlistBuddy", [
+    "-c",
+    `Set :ElectronAsarIntegrity:Resources/app.asar:hash ${asarHash}`,
+    infoPlist,
+  ]);
+}
 fs.rmSync(appFolder, { recursive: true, force: true });
 fs.writeFileSync(path.join(resourcesDir, "codex-installer-patch.txt"), "Codex API mode fast/plugins/i18n patch applied.", "utf8");
 console.log(`  OK: Codex app patch applied and repacked (${patchCount} changes)`);

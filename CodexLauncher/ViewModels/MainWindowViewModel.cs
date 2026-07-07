@@ -731,35 +731,52 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         var codexArgs = new List<string>();
-        if (IsFreeProvider)
+        if (IsFreeProvider && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             AddOfflineSafeCodexArguments(codexArgs);
         }
 
         ProcessStartInfo startInfo;
-        var codexApp = FindCodexApp();
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && codexApp is not null)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
+            var codexApp = FindCodexApp();
+            if (codexApp is null)
+            {
+                throw new FileNotFoundException("未找到 Codex");
+            }
+
+            var userDataDir = Path.Combine(GetMacAppSupportDir(), "UserData");
+            Directory.CreateDirectory(userDataDir);
+            var command = string.Join(
+                " ",
+                [
+                    "(",
+                    "/bin/sleep",
+                    "1",
+                    ";",
+                    "/usr/bin/open",
+                    "-n",
+                    "--env",
+                    ShellQuote($"CODEX_HOME={GetCodexDir()}"),
+                    "--env",
+                    ShellQuote($"CODEX_FREE_HOME={GetMacAppSupportDir()}"),
+                    ShellQuote(codexApp),
+                    "--args",
+                    ShellQuote($"--user-data-dir={userDataDir}"),
+                    .. codexArgs.Select(ShellQuote),
+                    ")",
+                    ">",
+                    "/dev/null",
+                    "2>&1",
+                    "&"
+                ]);
             startInfo = new ProcessStartInfo
             {
-                FileName = "/usr/bin/open",
+                FileName = "/bin/zsh",
                 UseShellExecute = false
             };
-            startInfo.ArgumentList.Add("-n");
-            startInfo.ArgumentList.Add("--env");
-            startInfo.ArgumentList.Add($"CODEX_HOME={GetCodexDir()}");
-            startInfo.ArgumentList.Add("--env");
-            startInfo.ArgumentList.Add($"CODEX_FREE_HOME={GetMacAppSupportDir()}");
-            startInfo.ArgumentList.Add(codexApp);
-            startInfo.ArgumentList.Add("--args");
-            startInfo.ArgumentList.Add($"--user-data-dir={Path.Combine(GetMacAppSupportDir(), "UserData")}");
-            if (codexArgs.Count > 0)
-            {
-                foreach (var arg in codexArgs)
-                {
-                    startInfo.ArgumentList.Add(arg);
-                }
-            }
+            startInfo.ArgumentList.Add("-lc");
+            startInfo.ArgumentList.Add(command);
         }
         else
         {
@@ -781,7 +798,16 @@ public partial class MainWindowViewModel : ObservableObject
             PrependBundledNodeToPath(startInfo);
         }
 
-        Process.Start(startInfo);
+        var process = Process.Start(startInfo);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            process?.WaitForExit(5000);
+        }
+    }
+
+    private static string ShellQuote(string value)
+    {
+        return "'" + value.Replace("'", "'\\''") + "'";
     }
 
     private static void AddOfflineSafeCodexArguments(ICollection<string> args)
@@ -1070,6 +1096,19 @@ public partial class MainWindowViewModel : ObservableObject
 
     private static string? FindCodexExe()
     {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            var macApp = FindCodexApp();
+            if (macApp is not null)
+            {
+                var exe = Path.Combine(macApp, "Contents", "MacOS", "Codex");
+                if (File.Exists(exe))
+                {
+                    return Path.GetFullPath(exe);
+                }
+            }
+        }
+
         var baseDir = AppContext.BaseDirectory;
         var macExecutableName = "Codex";
         var candidates = new[]
@@ -1090,6 +1129,15 @@ public partial class MainWindowViewModel : ObservableObject
 
     private static string? FindCodexApp()
     {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            var installed = EnsureMacBundledCodexAppInstalled();
+            if (installed is not null)
+            {
+                return installed;
+            }
+        }
+
         var baseDir = AppContext.BaseDirectory;
         var candidates = new[]
         {
@@ -1103,6 +1151,86 @@ public partial class MainWindowViewModel : ObservableObject
         };
 
         return candidates.Select(Path.GetFullPath).FirstOrDefault(Directory.Exists);
+    }
+
+    private static string? EnsureMacBundledCodexAppInstalled()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var embedded = Path.GetFullPath(Path.Combine(baseDir, "..", "Resources", "Codex.app"));
+        if (!Directory.Exists(embedded))
+        {
+            return null;
+        }
+
+        var runtimeDir = Path.Combine(GetMacAppSupportDir(), "Runtime");
+        var installed = Path.Combine(runtimeDir, "Codex.app");
+        var marker = Path.Combine(runtimeDir, "codex-runtime.marker");
+        var sourceMarker = GetMacCodexRuntimeMarker(embedded);
+
+        if (File.Exists(Path.Combine(installed, "Contents", "MacOS", "Codex"))
+            && File.Exists(marker)
+            && string.Equals(File.ReadAllText(marker, Encoding.UTF8), sourceMarker, StringComparison.Ordinal))
+        {
+            return installed;
+        }
+
+        Directory.CreateDirectory(runtimeDir);
+        var temp = Path.Combine(runtimeDir, "Codex.app.tmp");
+        if (Directory.Exists(temp))
+        {
+            Directory.Delete(temp, recursive: true);
+        }
+
+        RunMacTool("/usr/bin/ditto", embedded, temp);
+        RunMacTool("/usr/bin/xattr", "-dr", "com.apple.quarantine", temp);
+
+        if (Directory.Exists(installed))
+        {
+            Directory.Delete(installed, recursive: true);
+        }
+
+        Directory.Move(temp, installed);
+        File.WriteAllText(marker, sourceMarker, Encoding.UTF8);
+        return installed;
+    }
+
+    private static string GetMacCodexRuntimeMarker(string app)
+    {
+        var info = Path.Combine(app, "Contents", "Info.plist");
+        var asar = Path.Combine(app, "Contents", "Resources", "app.asar");
+        var patch = Path.Combine(app, "Contents", "Resources", "codex-installer-patch.txt");
+        var parts = new List<string> { "v1" };
+        foreach (var file in new[] { info, asar, patch })
+        {
+            if (File.Exists(file))
+            {
+                var item = new FileInfo(file);
+                parts.Add($"{item.Name}:{item.Length}:{item.LastWriteTimeUtc.Ticks}");
+            }
+        }
+
+        return string.Join("|", parts);
+    }
+
+    private static void RunMacTool(string fileName, params string[] arguments)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException($"无法启动 {fileName}");
+        process.WaitForExit();
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"{Path.GetFileName(fileName)} 执行失败，退出码 {process.ExitCode}");
+        }
     }
 
     private static void PrependBundledNodeToPath(ProcessStartInfo startInfo)
