@@ -559,6 +559,12 @@ internal sealed class CodexApiProxy
             WriteDebugLog($"request {requestId} upstream_status={(int)chatResponse.StatusCode}");
             if (!chatResponse.IsSuccessStatusCode)
             {
+                if (ShouldSaveDebugRequests())
+                {
+                    var requestLogPath = WriteDebugRequestLog((int)chatResponse.StatusCode, requestId, chatRequest);
+                    WriteDebugLog($"request {requestId} upstream_request_saved={requestLogPath}");
+                }
+
                 await WriteJsonAsync(stream, (int)chatResponse.StatusCode, NormalizeError(responseBytes, (int)chatResponse.StatusCode));
                 return;
             }
@@ -630,6 +636,7 @@ internal sealed class CodexApiProxy
         {
             AddNode(messages, Message("user", ""));
         }
+        NormalizeToolCallMessageSequence(messages);
 
         var chat = new JsonObject
         {
@@ -669,6 +676,69 @@ internal sealed class CodexApiProxy
         return FreeModels.Contains(model, StringComparer.Ordinal)
             ? model
             : "deepseek-v4-flash-free";
+    }
+
+    private static void NormalizeToolCallMessageSequence(JsonArray messages)
+    {
+        var normalized = new JsonArray();
+        for (var i = 0; i < messages.Count; i++)
+        {
+            if (messages[i] is not JsonObject message || !IsAssistantToolCallMessage(message))
+            {
+                AddNode(normalized, messages[i]?.DeepClone());
+                continue;
+            }
+
+            var merged = new JsonObject
+            {
+                ["role"] = "assistant",
+                ["tool_calls"] = new JsonArray()
+            };
+            var reasoningParts = new List<string>();
+            var mergedToolCalls = merged["tool_calls"]!.AsArray();
+
+            while (i < messages.Count
+                   && messages[i] is JsonObject toolCallMessage
+                   && IsAssistantToolCallMessage(toolCallMessage))
+            {
+                if (toolCallMessage["tool_calls"] is JsonArray toolCalls)
+                {
+                    foreach (var toolCall in toolCalls)
+                    {
+                        AddNode(mergedToolCalls, toolCall?.DeepClone());
+                    }
+                }
+
+                var reasoning = NodeText(toolCallMessage["reasoning_content"]);
+                if (!string.IsNullOrWhiteSpace(reasoning))
+                {
+                    reasoningParts.Add(reasoning);
+                }
+
+                i++;
+            }
+
+            i--;
+            if (reasoningParts.Count > 0)
+            {
+                merged["reasoning_content"] = string.Join("\n\n", reasoningParts);
+            }
+
+            AddNode(normalized, merged);
+        }
+
+        messages.Clear();
+        foreach (var message in normalized)
+        {
+            AddNode(messages, message?.DeepClone());
+        }
+    }
+
+    private static bool IsAssistantToolCallMessage(JsonObject message)
+    {
+        return NodeText(message["role"]) == "assistant"
+            && message["tool_calls"] is JsonArray toolCalls
+            && toolCalls.Count > 0;
     }
 
     private static JsonArray MakeOpenCodeCompatibleTools(JsonArray tools)
@@ -1450,6 +1520,23 @@ internal sealed class CodexApiProxy
         var path = Path.Combine(dir, $"proxy-error-{DateTime.Now:yyyyMMdd-HHmmss}-{status}.txt");
         File.WriteAllText(path, text, new UTF8Encoding(false));
         return path;
+    }
+
+    private static string WriteDebugRequestLog(int status, string requestId, JsonObject request)
+    {
+        var dir = Path.Combine(ProxyDataDir(), "proxy-errors");
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, $"proxy-request-{DateTime.Now:yyyyMMdd-HHmmss}-{requestId}-{status}.json");
+        File.WriteAllText(path, request.ToJsonString(JsonOptions), new UTF8Encoding(false));
+        return path;
+    }
+
+    private static bool ShouldSaveDebugRequests()
+    {
+        return string.Equals(
+            Environment.GetEnvironmentVariable("CODEX_PROXY_SAVE_REQUESTS"),
+            "1",
+            StringComparison.Ordinal);
     }
 
     private static JsonObject ErrorJson(string message)
