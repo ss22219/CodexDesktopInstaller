@@ -1009,6 +1009,10 @@ public partial class MainWindowViewModel : ObservableObject
         startInfo.ArgumentList.Add(ApiProxyPort.ToString());
         startInfo.ArgumentList.Add("--upstream");
         startInfo.ArgumentList.Add(FreeUpstreamBaseUrl);
+        startInfo.Environment["CODEX_HOME"] = GetCodexDir();
+        startInfo.Environment["CODEX_FREE_HOME"] = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+            ? GetMacAppSupportDir()
+            : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Data"));
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             startInfo.ArgumentList.Add("--codex-exe");

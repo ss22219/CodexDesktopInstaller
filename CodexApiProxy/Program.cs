@@ -537,8 +537,19 @@ internal sealed class CodexApiProxy
         var wantsStream = responseRequest["stream"]?.GetValue<bool>() == true;
         WriteDebugLog($"request {requestId} model={NodeText(responseRequest["model"])} stream={wantsStream} incoming_tools={ToolSummary(responseRequest["tools"])}");
         WriteDebugLog($"request {requestId} special_tools={SpecialToolSummary(responseRequest["tools"])}");
-        var chatRequest = BuildChatRequest(responseRequest);
+        var chatRequest = BuildChatRequest(
+            responseRequest,
+            useCompatibleToolSchemas: ShouldUseCompatibleToolSchemas(),
+            normalizeBuiltInFreeModel: UsesBuiltInFreeModels());
         WriteDebugLog($"request {requestId} chat_tools={ToolSummary(chatRequest["tools"])}");
+        if (!string.Equals(NodeText(responseRequest["model"]), NodeText(chatRequest["model"]), StringComparison.Ordinal))
+        {
+            WriteDebugLog($"request {requestId} normalized_model={NodeText(responseRequest["model"])}->{NodeText(chatRequest["model"])}");
+        }
+        if (ShouldUseCompatibleToolSchemas())
+        {
+            WriteDebugLog($"request {requestId} tool_schema=compatible upstream={_options.Upstream}");
+        }
 
         var chatResponse = await PostChatAsync(chatRequest, incoming);
 
@@ -574,6 +585,11 @@ internal sealed class CodexApiProxy
         return await _httpClient.SendAsync(request);
     }
 
+    private bool ShouldUseCompatibleToolSchemas()
+    {
+        return _options.Upstream.Contains("opencode.ai/zen", StringComparison.OrdinalIgnoreCase);
+    }
+
     private void ApplyAuth(HttpRequestMessage request, HttpRequest incoming)
     {
         if (!string.IsNullOrWhiteSpace(_options.ApiKey))
@@ -585,10 +601,15 @@ internal sealed class CodexApiProxy
         // Free opencode requests must not inherit the user's OpenAI/Codex auth header.
     }
 
-    private static JsonObject BuildChatRequest(JsonObject responseRequest)
+    private static JsonObject BuildChatRequest(
+        JsonObject responseRequest,
+        bool useCompatibleToolSchemas = false,
+        bool normalizeBuiltInFreeModel = false)
     {
         var messages = new JsonArray();
-        var model = NodeText(responseRequest["model"], "north-mini-code-free");
+        var model = NormalizeRequestedModel(
+            NodeText(responseRequest["model"], "deepseek-v4-flash-free"),
+            normalizeBuiltInFreeModel);
         var requiresReasoningContent = RequiresReasoningContent(model);
         var instructions = NodeText(responseRequest["instructions"]);
         if (!string.IsNullOrWhiteSpace(instructions))
@@ -624,6 +645,11 @@ internal sealed class CodexApiProxy
         }
 
         var tools = NormalizeTools(responseRequest["tools"]);
+        if (useCompatibleToolSchemas)
+        {
+            tools = MakeOpenCodeCompatibleTools(tools);
+        }
+
         if (tools.Count > 0)
         {
             chat["tools"] = tools;
@@ -631,6 +657,161 @@ internal sealed class CodexApiProxy
         }
 
         return chat;
+    }
+
+    private static string NormalizeRequestedModel(string model, bool normalizeBuiltInFreeModel)
+    {
+        if (!normalizeBuiltInFreeModel)
+        {
+            return model;
+        }
+
+        return FreeModels.Contains(model, StringComparer.Ordinal)
+            ? model
+            : "deepseek-v4-flash-free";
+    }
+
+    private static JsonArray MakeOpenCodeCompatibleTools(JsonArray tools)
+    {
+        var result = new JsonArray();
+        foreach (var rawTool in tools)
+        {
+            if (rawTool is not JsonObject tool || tool["function"] is not JsonObject function)
+            {
+                continue;
+            }
+
+            var compatibleFunction = new JsonObject
+            {
+                ["name"] = NodeText(function["name"]),
+                ["description"] = TrimToolDescription(NodeText(function["description"])),
+                ["parameters"] = SimplifyJsonSchema(function["parameters"])
+            };
+
+            AddNode(result, new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = compatibleFunction
+            });
+        }
+
+        return result;
+    }
+
+    private static JsonObject SimplifyJsonSchema(JsonNode? schema)
+    {
+        if (schema is not JsonObject obj)
+        {
+            return new JsonObject
+            {
+                ["type"] = "object",
+                ["additionalProperties"] = true
+            };
+        }
+
+        var type = NodeText(obj["type"], "object");
+        if (type != "object")
+        {
+            return new JsonObject
+            {
+                ["type"] = "object",
+                ["additionalProperties"] = true
+            };
+        }
+
+        var result = new JsonObject
+        {
+            ["type"] = "object",
+            ["additionalProperties"] = true
+        };
+
+        if (obj["properties"] is JsonObject properties)
+        {
+            var simplifiedProperties = new JsonObject();
+            foreach (var property in properties)
+            {
+                simplifiedProperties[property.Key] = SimplifyPropertySchema(property.Value);
+            }
+
+            result["properties"] = simplifiedProperties;
+        }
+
+        if (obj["required"] is JsonArray required)
+        {
+            var simplifiedRequired = new JsonArray();
+            foreach (var item in required)
+            {
+                var value = NodeText(item);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    AddNode(simplifiedRequired, value);
+                }
+            }
+
+            if (simplifiedRequired.Count > 0)
+            {
+                result["required"] = simplifiedRequired;
+            }
+        }
+
+        return result;
+    }
+
+    private static JsonObject SimplifyPropertySchema(JsonNode? schema)
+    {
+        if (schema is not JsonObject obj)
+        {
+            return new JsonObject { ["type"] = "string" };
+        }
+
+        var type = NodeText(obj["type"], "string");
+        if (type is not ("string" or "number" or "integer" or "boolean" or "array" or "object"))
+        {
+            type = "string";
+        }
+
+        var result = new JsonObject { ["type"] = type };
+        var description = TrimToolDescription(NodeText(obj["description"]));
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            result["description"] = description;
+        }
+
+        if (obj["enum"] is JsonArray enumValues)
+        {
+            result["enum"] = enumValues.DeepClone();
+        }
+
+        if (type == "array")
+        {
+            result["items"] = SimplifyPropertySchema(obj["items"]);
+        }
+        else if (type == "object")
+        {
+            result["additionalProperties"] = true;
+            if (obj["properties"] is JsonObject properties)
+            {
+                var simplifiedProperties = new JsonObject();
+                foreach (var property in properties)
+                {
+                    simplifiedProperties[property.Key] = SimplifyPropertySchema(property.Value);
+                }
+
+                result["properties"] = simplifiedProperties;
+            }
+        }
+
+        return result;
+    }
+
+    private static string TrimToolDescription(string description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return "";
+        }
+
+        return description.Length <= 1200 ? description : description[..1200];
     }
 
     private static bool RequiresReasoningContent(string model)
@@ -1264,10 +1445,7 @@ internal sealed class CodexApiProxy
 
     private static string WriteErrorLog(int status, string text)
     {
-        var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "CodexLauncher",
-            "proxy-errors");
+        var dir = Path.Combine(ProxyDataDir(), "proxy-errors");
         Directory.CreateDirectory(dir);
         var path = Path.Combine(dir, $"proxy-error-{DateTime.Now:yyyyMMdd-HHmmss}-{status}.txt");
         File.WriteAllText(path, text, new UTF8Encoding(false));
@@ -1345,9 +1523,7 @@ internal sealed class CodexApiProxy
     {
         try
         {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "CodexLauncher");
+            var dir = ProxyDataDir();
             Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, "proxy-debug.log");
             var line = $"{DateTimeOffset.Now:O} {message}{Environment.NewLine}";
@@ -1359,6 +1535,19 @@ internal sealed class CodexApiProxy
         catch
         {
         }
+    }
+
+    private static string ProxyDataDir()
+    {
+        var freeHome = Environment.GetEnvironmentVariable("CODEX_FREE_HOME");
+        if (!string.IsNullOrWhiteSpace(freeHome))
+        {
+            return freeHome;
+        }
+
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "CodexFreeLauncher");
     }
 
     private static string NodeText(JsonNode? node, string fallback = "")
