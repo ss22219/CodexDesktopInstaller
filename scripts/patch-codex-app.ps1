@@ -37,6 +37,9 @@ function Update-FileText {
     }
 
     $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    if ($null -eq $text) {
+        return 0
+    }
     if (!$text.Contains($Old)) {
         return 0
     }
@@ -68,6 +71,9 @@ function Update-FirstRegex {
     }
 
     $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    if ($null -eq $text) {
+        return 0
+    }
     $regex = [regex]::new($Pattern)
     if (!$regex.IsMatch($text)) {
         return 0
@@ -91,11 +97,19 @@ function Update-PackageJson {
 
     $packageJson = Get-Content -LiteralPath $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $changed = 0
-    if ($packageJson.codexSparkleFeedUrl -ne "") {
+    if ($null -eq $packageJson.PSObject.Properties["codexSparkleFeedUrl"]) {
+        $packageJson | Add-Member -NotePropertyName "codexSparkleFeedUrl" -NotePropertyValue ""
+        $changed = 1
+    }
+    elseif ($packageJson.codexSparkleFeedUrl -ne "") {
         $packageJson.codexSparkleFeedUrl = ""
         $changed = 1
     }
-    if ($packageJson.codexSparklePublicKey -ne "") {
+    if ($null -eq $packageJson.PSObject.Properties["codexSparklePublicKey"]) {
+        $packageJson | Add-Member -NotePropertyName "codexSparklePublicKey" -NotePropertyValue ""
+        $changed = 1
+    }
+    elseif ($packageJson.codexSparklePublicKey -ne "") {
         $packageJson.codexSparklePublicKey = ""
         $changed = 1
     }
@@ -266,6 +280,9 @@ if (Test-Path -LiteralPath $packageJsonPath) {
 
 Get-ChildItem -LiteralPath $appFolder -Recurse -File -Include "*.js", "*.cjs", "*.mjs" | ForEach-Object {
     $text = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8
+    if ($null -eq $text) {
+        return
+    }
     if ($text.Contains('enableUpdater:n.i.shouldIncludeUpdater(a,process.platform,process.env)') -or $text.Contains('enableSparkle:!0')) {
         throw "Codex updater patch was not applied: $($_.FullName)"
     }
