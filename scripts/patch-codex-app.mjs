@@ -59,7 +59,13 @@ function updatePackageJson() {
 }
 
 function files(globPrefix, globSuffix) {
-  return walk(assetsDir, (_full, name) => name.startsWith(globPrefix) && name.endsWith(globSuffix));
+  return uniqueFiles(jsRootDirs.flatMap((dir) =>
+    walk(dir, (_full, name) => name.startsWith(globPrefix) && name.endsWith(globSuffix)),
+  ));
+}
+
+function uniqueFiles(files) {
+  return [...new Set(files)];
 }
 
 const resolvedAppDir = path.resolve(appDir);
@@ -71,6 +77,7 @@ const resourcesDir = exists(path.join(resolvedAppDir, "resources"))
 const asarPath = path.join(resourcesDir, "app.asar");
 const appFolder = path.join(resourcesDir, "app");
 const assetsDir = path.join(appFolder, "webview", "assets");
+const viteBuildDir = path.join(appFolder, ".vite", "build");
 
 if (!exists(resourcesDir)) {
   throw new Error(`Codex resources directory not found: ${resourcesDir}`);
@@ -85,8 +92,9 @@ if (exists(asarPath)) {
   console.log("  OK: extracted app.asar for patching");
 }
 
-if (!exists(assetsDir)) {
-  throw new Error(`Codex webview assets not found: ${assetsDir}`);
+const jsRootDirs = [assetsDir, viteBuildDir].filter(exists);
+if (jsRootDirs.length === 0) {
+  jsRootDirs.push(appFolder);
 }
 
 let patchCount = 0;
@@ -147,7 +155,7 @@ for (const file of files("use-plugin-install-flow-", ".js")) {
   );
 }
 
-for (const file of walk(assetsDir, (_full, name) => name.endsWith(".js"))) {
+for (const file of uniqueFiles(jsRootDirs.flatMap((dir) => walk(dir, (_full, name) => name.endsWith(".js"))))) {
   patchCount += updateFileText(
     file,
     "function Jm({authMethod:e,email:t,plan:n}){return e===`apikey`?!0:e===`chatgpt`?Ym({email:t,plan:n}):!1}",
@@ -156,7 +164,9 @@ for (const file of walk(assetsDir, (_full, name) => name.endsWith(".js"))) {
   );
 }
 
-const allJsFiles = walk(assetsDir, (_full, name) => name.endsWith(".js"));
+const allJsFiles = uniqueFiles(jsRootDirs.flatMap((dir) =>
+  walk(dir, (_full, name) => name.endsWith(".js") || name.endsWith(".cjs") || name.endsWith(".mjs")),
+));
 
 for (const file of allJsFiles.filter((file) => fs.readFileSync(file, "utf8").includes("locale_source"))) {
   i18nPatchCount += updateFileText(
@@ -227,23 +237,55 @@ for (const file of allJsFiles.filter((file) => {
 }
 patchCount += modelListPatchCount;
 
-for (const file of files("model-and-reasoning-dropdown-", ".js")) {
-  patchCount += updateFileText(
+let modelDropdownPatchCount = 0;
+for (const file of allJsFiles.filter((file) => {
+  const text = fs.readFileSync(file, "utf8");
+  return text.includes("let A=k,j=ne===void 0?!1:ne,de=ie===void 0?!0:ie,M=ae===void 0?!1:ae,N=fe(a,i),P=pe(x,N),");
+})) {
+  modelDropdownPatchCount += updateFileText(
     file,
     "let A=k,j=ne===void 0?!1:ne,de=ie===void 0?!0:ie,M=ae===void 0?!1:ae,N=fe(a,i),P=pe(x,N),",
     "let __codexFreeModels=[`deepseek-v4-flash-free`,`north-mini-code-free`,`mimo-v2.5-free`,`nemotron-3-ultra-free`],__codexIsFree=e=>__codexFreeModels.includes(String(e)),__codexLabel=e=>String(e).split(`-`).filter(Boolean).map(e=>e.length<=3?e.toUpperCase():`${e[0]?.toUpperCase()??``}${e.slice(1)}`).join(` `),__codexFree=__codexIsFree(i)||a?.some(e=>__codexIsFree(e?.model));__codexFree&&(i=__codexIsFree(i)?i:__codexFreeModels[0],a=__codexFreeModels.map(e=>({model:e,displayName:__codexLabel(e),description:__codexLabel(e),hidden:!1,isDefault:e===i,defaultReasoningEffort:`none`,supportedReasoningEfforts:[{reasoningEffort:`none`,description:`Disable Thinking`}]})),x=`none`,S=!0,le=!0);let A=k,j=ne===void 0?!1:ne,de=__codexFree?!1:(ie===void 0?!0:ie),M=__codexFree?!1:(ae===void 0?!1:ae),N=fe(a,i),P=pe(x,N),",
     "free model dropdown",
   );
 }
+for (const file of allJsFiles.filter((file) => {
+  const text = fs.readFileSync(file, "utf8");
+  return text.includes("let k=O,A=b===void 0?!1:b,j=x===void 0?!0:x,M=S===void 0?!1:S,N=Jlt(a,i),P=Ylt(h,N),");
+})) {
+  modelDropdownPatchCount += updateFileText(
+    file,
+    "let k=O,A=b===void 0?!1:b,j=x===void 0?!0:x,M=S===void 0?!1:S,N=Jlt(a,i),P=Ylt(h,N),",
+    "let __codexFreeModels=[`deepseek-v4-flash-free`,`north-mini-code-free`,`mimo-v2.5-free`,`nemotron-3-ultra-free`],__codexIsFree=e=>__codexFreeModels.includes(String(e)),__codexLabel=e=>String(e).split(`-`).filter(Boolean).map(e=>e.length<=3?e.toUpperCase():`${e[0]?.toUpperCase()??``}${e.slice(1)}`).join(` `),__codexFree=__codexIsFree(i)||a?.some(e=>__codexIsFree(e?.model));__codexFree&&(i=__codexIsFree(i)?i:__codexFreeModels[0],a=__codexFreeModels.map(e=>({model:e,displayName:__codexLabel(e),description:__codexLabel(e),hidden:!1,isDefault:e===i,defaultReasoningEffort:`none`,supportedReasoningEfforts:[{reasoningEffort:`none`,description:`Disable Thinking`}]})),h=`none`,x=!0,S=!1);let k=O,A=b===void 0?!1:b,j=__codexFree?!1:(x===void 0?!0:x),M=__codexFree?!1:(S===void 0?!1:S),N=Jlt(a,i),P=Ylt(h,N),",
+    "free model dropdown",
+  );
+}
+patchCount += modelDropdownPatchCount;
 
-for (const file of files("composer-", ".js")) {
-  patchCount += updateFileText(
+let composerPatchCount = 0;
+for (const file of allJsFiles.filter((file) => {
+  const text = fs.readFileSync(file, "utf8");
+  return text.includes("c=o?.models,{modelSettings:u,setModelAndReasoningEffort:d}=ja(e),f=u.model;");
+})) {
+  composerPatchCount += updateFileText(
     file,
     "c=o?.models,{modelSettings:u,setModelAndReasoningEffort:d}=ja(e),f=u.model;",
     "c=o?.models,{modelSettings:u,setModelAndReasoningEffort:d}=ja(e),f=u.model,__codexComposerFreeModels=[`deepseek-v4-flash-free`,`north-mini-code-free`,`mimo-v2.5-free`,`nemotron-3-ultra-free`],__codexComposerIsFree=e=>__codexComposerFreeModels.includes(String(e)),__codexComposerFree=__codexComposerIsFree(f)||c?.some(e=>__codexComposerIsFree(e?.model));__codexComposerFree&&(f=__codexComposerIsFree(f)?f:__codexComposerFreeModels[0],u={...u,model:f,reasoningEffort:`none`},c=__codexComposerFreeModels.map(e=>({model:e,name:e,displayName:e.split(`-`).filter(Boolean).map(e=>e.length<=3?e.toUpperCase():`${e[0]?.toUpperCase()??``}${e.slice(1)}`).join(` `),description:e,hidden:!1,isDefault:e===f,defaultReasoningEffort:`none`,supportedReasoningEfforts:[{reasoningEffort:`none`,description:`Disable Thinking`}]})));",
     "free model composer label",
   );
 }
+for (const file of allJsFiles.filter((file) => {
+  const text = fs.readFileSync(file, "utf8");
+  return text.includes("{data:o,status:s}=$s({hostId:r.hostId}),c=o?.models,{modelSettings:l,setModelAndReasoningEffort:u}=Nn(e),d=l.model;");
+})) {
+  composerPatchCount += updateFileText(
+    file,
+    "{data:o,status:s}=$s({hostId:r.hostId}),c=o?.models,{modelSettings:l,setModelAndReasoningEffort:u}=Nn(e),d=l.model;",
+    "{data:o,status:s}=$s({hostId:r.hostId}),c=o?.models,{modelSettings:l,setModelAndReasoningEffort:u}=Nn(e),d=l.model,__codexComposerFreeModels=[`deepseek-v4-flash-free`,`north-mini-code-free`,`mimo-v2.5-free`,`nemotron-3-ultra-free`],__codexComposerIsFree=e=>__codexComposerFreeModels.includes(String(e)),__codexComposerFree=__codexComposerIsFree(d)||c?.some(e=>__codexComposerIsFree(e?.model));__codexComposerFree&&(d=__codexComposerIsFree(d)?d:__codexComposerFreeModels[0],l={...l,model:d,reasoningEffort:`none`},c=__codexComposerFreeModels.map(e=>({model:e,name:e,displayName:e.split(`-`).filter(Boolean).map(e=>e.length<=3?e.toUpperCase():`${e[0]?.toUpperCase()??``}${e.slice(1)}`).join(` `),description:e,hidden:!1,isDefault:e===d,defaultReasoningEffort:`none`,supportedReasoningEfforts:[{reasoningEffort:`none`,description:`Disable Thinking`}]})));",
+    "free model composer label",
+  );
+}
+patchCount += composerPatchCount;
 
 const pluginRoot = path.join(resourcesDir, "plugins", "openai-bundled", "plugins");
 for (const file of walk(pluginRoot, (_full, name) => name === "SKILL.md")) {
@@ -261,6 +303,24 @@ if (modelListPatchCount === 0) {
   );
   if (!alreadyPatched) {
     throw new Error("Codex model list patch was not applied. The bundled Codex model selector may have changed.");
+  }
+}
+
+if (modelDropdownPatchCount === 0) {
+  const alreadyPatched = allJsFiles.some((file) =>
+    fs.readFileSync(file, "utf8").includes("__codexFreeModels"),
+  );
+  if (!alreadyPatched) {
+    throw new Error("Codex model dropdown patch was not applied. The bundled Codex model selector may have changed.");
+  }
+}
+
+if (composerPatchCount === 0) {
+  const alreadyPatched = allJsFiles.some((file) =>
+    fs.readFileSync(file, "utf8").includes("__codexComposerFreeModels"),
+  );
+  if (!alreadyPatched) {
+    throw new Error("Codex composer model patch was not applied. The bundled Codex composer may have changed.");
   }
 }
 

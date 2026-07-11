@@ -731,6 +731,12 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         var codexArgs = new List<string>();
+        if (IsFreeProvider)
+        {
+            AddFreeDebugArguments(codexArgs);
+            WriteFreeDebugEndpoint();
+        }
+
         if (IsFreeProvider && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             AddOfflineSafeCodexArguments(codexArgs);
@@ -821,6 +827,30 @@ public partial class MainWindowViewModel : ObservableObject
         args.Add("--disable-client-side-phishing-detection");
         args.Add("--disable-features=AutofillServerCommunication,CertificateTransparencyComponentUpdater,OptimizationGuideModelDownloading,OptimizationGuideOnDeviceModel,OptimizationHints,OptimizationHintsFetching,OptimizationTargetPrediction,SegmentationPlatform,MediaRouter");
         args.Add("--host-resolver-rules=MAP chat.openai.com 0.0.0.0,MAP chatgpt.com 0.0.0.0,MAP ab.chatgpt.com 0.0.0.0,MAP a.nel.cloudflare.com 0.0.0.0,MAP android.clients.google.com 0.0.0.0,MAP clients2.google.com 0.0.0.0,MAP dl.google.com 0.0.0.0,MAP optimizationguide-pa.googleapis.com 0.0.0.0,MAP redirector.gvt1.com 0.0.0.0,MAP mtalk.google.com 0.0.0.0,EXCLUDE localhost,EXCLUDE 127.0.0.1");
+    }
+
+    private static void AddFreeDebugArguments(ICollection<string> args)
+    {
+        args.Add("--remote-debugging-address=127.0.0.1");
+        args.Add("--remote-debugging-port=17632");
+    }
+
+    private static void WriteFreeDebugEndpoint()
+    {
+        try
+        {
+            var appSupportDir = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+                ? GetMacAppSupportDir()
+                : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Data"));
+            Directory.CreateDirectory(appSupportDir);
+            File.WriteAllText(
+                Path.Combine(appSupportDir, "cdp-endpoint.txt"),
+                "http://127.0.0.1:17632",
+                new UTF8Encoding(false));
+        }
+        catch
+        {
+        }
     }
 
     private bool RestartCodexIfRunning()
